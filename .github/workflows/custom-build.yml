@@ -1,0 +1,41 @@
+name: Custom Build
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout custom branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/keyboard-only-backlight
+          fetch-depth: 0
+
+      - name: Rebase on latest upstream
+        run: |
+          git remote add upstream https://github.com/seerge/g-helper.git
+          git fetch upstream main
+          git rebase upstream/main
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publish custom G-Helper
+        run: |
+          dotnet publish app/GHelper.csproj --configuration Release --runtime win-x64 --self-contained false /p:PublishSingleFile=true
+
+      - name: Upload custom EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: GHelper-keyboard-only-backlight
+          path: app/bin/Release/net8.0-windows/win-x64/publish/GHelper.exe
