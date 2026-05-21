@@ -20,6 +20,7 @@ namespace GHelper.Input
         public static bool tentMode = false;
         private static bool? _fnLock = null;
         private static string? _asusPath = null;
+        private static long _lastKeyboardActivityTick = Environment.TickCount64;
 
         private static long lastSleep;
 
@@ -43,6 +44,7 @@ namespace GHelper.Input
 
         KeyboardListener listener;
         KeyboardHook hook = new KeyboardHook();
+        KeyboardActivityHook keyboardActivityHook = new KeyboardActivityHook();
 
         public InputDispatcher()
         {
@@ -54,6 +56,7 @@ namespace GHelper.Input
             //Task.Run(Program.acpi.RunListener);
 
             hook.KeyPressed += new EventHandler<KeyPressedEventArgs>(KeyPressed);
+            keyboardActivityHook.KeyDown += MarkKeyboardActivity;
 
             RegisterKeys();
 
@@ -65,7 +68,7 @@ namespace GHelper.Input
         {
             if (GetBacklight() == 0) return;
 
-            TimeSpan iddle = NativeMethods.GetIdleTime();
+            TimeSpan iddle = GetKeyboardIdleTime();
             int kb_timeout;
 
             if (SystemInformation.PowerStatus.PowerLineStatus == PowerLineStatus.Online)
@@ -328,6 +331,7 @@ namespace GHelper.Input
         public void KeyPressed(object sender, KeyPressedEventArgs e)
         {
 
+            MarkKeyboardActivity();
             Logger.WriteLine(e.Key.ToString() + " " + e.Modifier.ToString());
 
             if (e.Modifier == ModifierKeys.None)
@@ -1079,6 +1083,17 @@ namespace GHelper.Input
             if (lidClose || tentMode) return;
             Aura.ApplyBrightness(GetBacklight(), "Auto");
             backlightActivity = true;
+            MarkKeyboardActivity();
+        }
+
+        private static void MarkKeyboardActivity()
+        {
+            _lastKeyboardActivityTick = Environment.TickCount64;
+        }
+
+        private static TimeSpan GetKeyboardIdleTime()
+        {
+            return TimeSpan.FromMilliseconds(Environment.TickCount64 - _lastKeyboardActivityTick);
         }
 
         public static void StartupBacklight()
