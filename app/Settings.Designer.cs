@@ -1080,7 +1080,7 @@ namespace GHelper
             panelScreen.Margin = new Padding(0);
             panelScreen.Name = "panelScreen";
             panelScreen.Padding = new Padding(20, 11, 20, 0);
-            panelScreen.Size = new Size(827, 187);
+            panelScreen.Size = new Size(827, 247);
             panelScreen.TabIndex = 2;
             panelScreen.TabStop = true;
             // 
@@ -1114,10 +1114,10 @@ namespace GHelper
             tableScreen.Location = new Point(20, 51);
             tableScreen.Margin = new Padding(8, 4, 8, 4);
             tableScreen.Name = "tableScreen";
-            tableScreen.RowCount = 1;
+            tableScreen.RowCount = 2;
             tableScreen.RowStyles.Add(new RowStyle(SizeType.Absolute, 80F));
-            tableScreen.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
-            tableScreen.Size = new Size(787, 100);
+            tableScreen.RowStyles.Add(new RowStyle(SizeType.Absolute, 80F));
+            tableScreen.Size = new Size(787, 160);
             tableScreen.TabIndex = 23;
             // 
             // buttonScreenAuto
@@ -2112,7 +2112,7 @@ namespace GHelper
             buttonFreeSync.Margin = new Padding(4);
             buttonFreeSync.Name = "buttonFreeSync";
             buttonFreeSync.Secondary = false;
-            buttonFreeSync.Size = new Size(188, 12);
+            buttonFreeSync.Size = new Size(188, 72);
             buttonFreeSync.TabIndex = 15;
             buttonFreeSync.Text = "FreeSync";
             buttonFreeSync.UseVisualStyleBackColor = false;

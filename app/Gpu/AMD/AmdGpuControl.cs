@@ -346,17 +346,24 @@ public class AmdGpuControl : IGpuControl
         return 1;
     }
 
+    private int GetDisplayAdapterIndex()
+    {
+        return _iGPU is not null ? ((ADLAdapterInfo)_iGPU).AdapterIndex : _internalDiscreteAdapter.AdapterIndex;
+    }
+
     private bool TryGetDisplayIndex(out int displayIndex)
     {
         displayIndex = -1;
         if (!IsValid) return false;
 
-        if (Adl2.NativeMethods.ADL2_Display_NumberOfDisplays_Get(_adlContextHandle, _internalDiscreteAdapter.AdapterIndex, out int numDisplays) != Adl2.ADL_SUCCESS)
+        int adapterIndex = GetDisplayAdapterIndex();
+
+        if (Adl2.NativeMethods.ADL2_Display_NumberOfDisplays_Get(_adlContextHandle, adapterIndex, out int numDisplays) != Adl2.ADL_SUCCESS)
             return false;
 
         for (int i = 0; i < numDisplays; i++)
         {
-            if (Adl2.NativeMethods.ADL2_Display_FreeSync_Cap(_adlContextHandle, _internalDiscreteAdapter.AdapterIndex, i, out ADLFreeSyncCap caps) != Adl2.ADL_SUCCESS)
+            if (Adl2.NativeMethods.ADL2_Display_FreeSync_Cap(_adlContextHandle, adapterIndex, i, out ADLFreeSyncCap caps) != Adl2.ADL_SUCCESS)
                 continue;
 
             if (caps.iCaps == 0)
@@ -364,7 +371,7 @@ public class AmdGpuControl : IGpuControl
 
             if (Adl2.NativeMethods.ADL2_Display_FreeSyncState_Get(
                 _adlContextHandle,
-                _internalDiscreteAdapter.AdapterIndex,
+                adapterIndex,
                 i,
                 out _,
                 out _,
@@ -391,7 +398,7 @@ public class AmdGpuControl : IGpuControl
 
         return Adl2.NativeMethods.ADL2_Display_FreeSyncState_Get(
             _adlContextHandle,
-            _internalDiscreteAdapter.AdapterIndex,
+            GetDisplayAdapterIndex(),
             displayIndex,
             out current,
             out defaultState,
@@ -409,7 +416,7 @@ public class AmdGpuControl : IGpuControl
 
         return Adl2.NativeMethods.ADL2_Display_FreeSyncState_Set(
             _adlContextHandle,
-            _internalDiscreteAdapter.AdapterIndex,
+            GetDisplayAdapterIndex(),
             displayIndex,
             setting,
             refreshRateInMicroHz) == Adl2.ADL_SUCCESS;
