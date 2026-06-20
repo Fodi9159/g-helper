@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  issues: write
 
 jobs:
   build:
@@ -19,6 +18,7 @@ jobs:
         with:
           ref: codex/keyboard-only-backlight
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Rebase on upstream
         id: rebase
@@ -31,30 +31,33 @@ jobs:
           git fetch upstream main
           git rebase upstream/main
 
-      - name: Notify conflict
+      - name: Get conflict info
         if: steps.rebase.outcome == 'failure'
+        id: conflicts
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           FILES=$(git diff --name-only --diff-filter=U 2>/dev/null || echo "unknown")
-          gh issue create --title "Upstream sync conflict — manual rebase needed" --body "Rebase on upstream/main failed. Resolve locally:
+          echo "files<<EOF" >> $GITHUB_OUTPUT
+          echo "$FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
-          \`\`\`bash
-          git fetch upstream
-          git rebase upstream/main
-          # resolve conflicts, then:
-          git add .
-          git rebase --continue
-          git push --force-with-lease
-          \`\`\`
-
-          **Conflicting files:**
-          \`\`\`
-          ${FILES}
-          \`\`\`
-
-          Build artifact was **not** published this run."
+      - name: Notify conflict
+        if: steps.rebase.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const files = `${{ steps.conflicts.outputs.files }}`.trim();
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Upstream sync conflict — manual rebase needed',
+              body: `Rebase on upstream/main failed. Resolve locally:\n\n` +
+                    `\`\`\`bash\ngit fetch upstream\ngit rebase upstream/main\n` +
+                    `# resolve conflicts, then:\ngit add .\ngit rebase --continue\ngit push --force-with-lease\n\`\`\`\n\n` +
+                    `**Conflicting files:**\n\`\`\`\n${files}\n\`\`\`\n\n` +
+                    `Build artifact was **not** published this run.`
+            });
 
       - name: Setup .NET
         if: steps.rebase.outcome == 'success'
@@ -76,15 +79,17 @@ jobs:
 
       - name: Notify sync success
         if: steps.rebase.outcome == 'success'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          UPSTREAM_SHA=$(git rev-parse upstream/main)
-          UPSTREAM_SHORT=$(echo $UPSTREAM_SHA | cut -c1-7)
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          gh issue create --title "Upstream sync OK — ${UPSTREAM_SHORT}" --body "Successfully synced to upstream [${UPSTREAM_SHORT}](https://github.com/seerge/g-helper/commit/${UPSTREAM_SHA}).
-
-          Build artifact available at: [${RUN_URL}](${RUN_URL})
-
-          No conflicts detected. Custom changes are up to date."
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = '${{ github.sha }}';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const upstreamSha = `${{ github.event.head_commit.message || 'N/A' }}`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Upstream sync OK — ${sha.substring(0, 7)}`,
+              body: `Successfully rebased and built.\n\n` +
+                    `Build artifact: [Download here](${runUrl})\n\n` +
+                    `No conflicts detected. Custom changes are up to date.`
+            });
