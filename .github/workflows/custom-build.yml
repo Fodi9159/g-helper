@@ -6,7 +6,8 @@ on:
     - cron: "0 3 * * *"
 
 permissions:
-  contents: read
+  contents: write
+  issues: write
 
 jobs:
   build:
@@ -19,7 +20,9 @@ jobs:
           ref: codex/keyboard-only-backlight
           fetch-depth: 0
 
-      - name: Rebase on latest upstream
+      - name: Rebase on upstream
+        id: rebase
+        continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -27,17 +30,58 @@ jobs:
           git fetch upstream main
           git rebase upstream/main
 
+      - name: Notify conflict
+        if: steps.rebase.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FILES=$(git diff --name-only --diff-filter=U 2>/dev/null || echo "unknown")
+          gh issue create --title "Upstream sync conflict — manual rebase needed" --body "Rebase on upstream/main failed. Resolve locally with:
+
+          ``````bash
+          git fetch upstream
+          git rebase upstream/main
+          # resolve conflicts, then:
+          git add .
+          git rebase --continue
+          git push --force-with-lease
+          ``````
+
+          **Conflicting files:**
+          ``````
+          $FILES
+          ``````
+
+          Build artifact was **not** published this run."
+
       - name: Setup .NET
+        if: steps.rebase.outcome == 'success'
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
 
       - name: Publish custom G-Helper
+        if: steps.rebase.outcome == 'success'
         run: |
           dotnet publish app/GHelper.csproj --configuration Release --runtime win-x64 --self-contained false /p:PublishSingleFile=true
 
       - name: Upload custom EXE
+        if: steps.rebase.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: GHelper-keyboard-only-backlight
           path: app/bin/Release/net8.0-windows/win-x64/publish/GHelper.exe
+
+      - name: Notify sync success
+        if: steps.rebase.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          UPSTREAM_SHA=$(git rev-parse upstream/main)
+          UPSTREAM_SHORT=$(echo $UPSTREAM_SHA | cut -c1-7)
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          gh issue create --title "Upstream sync OK — $UPSTREAM_SHORT" --body "Successfully synced to upstream [$UPSTREAM_SHORT](https://github.com/seerge/g-helper/commit/$UPSTREAM_SHA).
+
+          Build artifact available at: [$RUN_URL]($RUN_URL)
+
+          No conflicts detected. Custom changes are up to date."
