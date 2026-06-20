@@ -80,7 +80,8 @@ public class AmdGpuControl : IGpuControl
             return;
         }
 
-        ADLAdapterInfo? internalDiscreteAdapter = FindByType(ADLAsicFamilyType.Discrete);
+        ADLAdapterInfo? internalDiscreteAdapter = FindByType(ADLAsicFamilyType.Discrete)
+            ?? FindByType(ADLAsicFamilyType.Integrated);
 
         if (internalDiscreteAdapter is not null)
         {
@@ -274,6 +275,75 @@ public class AmdGpuControl : IGpuControl
         if (ADL2_FPS_Settings_Set(_adlContextHandle, ((ADLAdapterInfo)_iGPU).AdapterIndex, settings) != Adl2.ADL_SUCCESS) return 0;
 
         return 1;
+    }
+
+    private bool TryGetDisplayIndex(out int displayIndex)
+    {
+        displayIndex = -1;
+        if (!IsValid) return false;
+
+        if (Adl2.NativeMethods.ADL2_Display_NumberOfDisplays_Get(_adlContextHandle, _internalDiscreteAdapter.AdapterIndex, out int numDisplays) != Adl2.ADL_SUCCESS)
+            return false;
+
+        for (int i = 0; i < numDisplays; i++)
+        {
+            if (Adl2.NativeMethods.ADL2_Display_FreeSync_Cap(_adlContextHandle, _internalDiscreteAdapter.AdapterIndex, i, out ADLFreeSyncCap caps) != Adl2.ADL_SUCCESS)
+                continue;
+
+            if (caps.iCaps == 0)
+                continue;
+
+            if (Adl2.NativeMethods.ADL2_Display_FreeSyncState_Get(
+                _adlContextHandle,
+                _internalDiscreteAdapter.AdapterIndex,
+                i,
+                out _,
+                out _,
+                out _,
+                out _) != Adl2.ADL_SUCCESS)
+            {
+                continue;
+            }
+
+            displayIndex = i;
+            return true;
+        }
+
+        return false;
+    }
+
+    public bool TryGetFreeSyncState(out int current, out int defaultState, out int minRefreshRateInMicroHz, out int maxRefreshRateInMicroHz, out int displayIndex)
+    {
+        current = defaultState = minRefreshRateInMicroHz = maxRefreshRateInMicroHz = -1;
+        displayIndex = -1;
+
+        if (!IsValid) return false;
+        if (!TryGetDisplayIndex(out displayIndex)) return false;
+
+        return Adl2.NativeMethods.ADL2_Display_FreeSyncState_Get(
+            _adlContextHandle,
+            _internalDiscreteAdapter.AdapterIndex,
+            displayIndex,
+            out current,
+            out defaultState,
+            out minRefreshRateInMicroHz,
+            out maxRefreshRateInMicroHz) == Adl2.ADL_SUCCESS;
+    }
+
+    public bool SetFreeSync(bool enabled)
+    {
+        if (!IsValid) return false;
+        if (!TryGetFreeSyncState(out _, out _, out _, out int maxRefreshRateInMicroHz, out int displayIndex)) return false;
+
+        int refreshRateInMicroHz = enabled ? maxRefreshRateInMicroHz : 0;
+        int setting = enabled ? 1 : 0;
+
+        return Adl2.NativeMethods.ADL2_Display_FreeSyncState_Set(
+            _adlContextHandle,
+            _internalDiscreteAdapter.AdapterIndex,
+            displayIndex,
+            setting,
+            refreshRateInMicroHz) == Adl2.ADL_SUCCESS;
     }
 
     public ADLODNPerformanceLevels? GetGPUClocks()

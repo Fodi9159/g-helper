@@ -90,6 +90,7 @@ namespace GHelper
             button120Hz = new RButton();
             buttonMiniled = new RButton();
             buttonFHD = new RButton();
+            buttonFreeSync = new RButton();
             panelScreenTitle = new Panel();
             labelMidFan = new Label();
             pictureScreen = new PictureBox();
@@ -1118,6 +1119,7 @@ namespace GHelper
             tableScreen.Controls.Add(buttonMiniled, 3, 0);
             tableScreen.Controls.Add(buttonFHD, 3, 0);
             tableScreen.Controls.Add(buttonHDRControl, 3, 0);
+            tableScreen.Controls.Add(buttonFreeSync, 2, 1);
             tableScreen.Dock = DockStyle.Top;
             tableScreen.Location = new Point(20, 51);
             tableScreen.Margin = new Padding(8, 4, 8, 4);
@@ -2160,6 +2162,27 @@ namespace GHelper
             buttonHDRControl.UseVisualStyleBackColor = false;
             buttonHDRControl.Visible = false;
             // 
+            // buttonFreeSync
+            // 
+            buttonFreeSync.Activated = false;
+            buttonFreeSync.BackColor = SystemColors.ControlLightLight;
+            buttonFreeSync.BorderColor = Color.Transparent;
+            buttonFreeSync.BorderRadius = 5;
+            buttonFreeSync.CausesValidation = false;
+            buttonFreeSync.Dock = DockStyle.Fill;
+            buttonFreeSync.FlatAppearance.BorderSize = 0;
+            buttonFreeSync.FlatStyle = FlatStyle.Flat;
+            buttonFreeSync.ForeColor = SystemColors.ControlText;
+            buttonFreeSync.Location = new Point(396, 84);
+            buttonFreeSync.Margin = new Padding(4);
+            buttonFreeSync.Name = "buttonFreeSync";
+            buttonFreeSync.Secondary = false;
+            buttonFreeSync.Size = new Size(188, 12);
+            buttonFreeSync.TabIndex = 15;
+            buttonFreeSync.Text = "FreeSync";
+            buttonFreeSync.UseVisualStyleBackColor = false;
+            buttonFreeSync.Visible = false;
+            // 
             // SettingsForm
             // 
             AutoScaleDimensions = new SizeF(192F, 192F);
@@ -2368,6 +2391,7 @@ namespace GHelper
         private RButton buttonInstallColor;
         private Label labelVisual;
         private RButton buttonFHD;
+        private RButton buttonFreeSync;
         private RButton buttonAutoTDP;
         private Label labelBacklight;
         private Panel panelVersion;
