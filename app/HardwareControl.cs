@@ -13,6 +13,7 @@ public static class HardwareControl
 {
 
     public static IGpuControl? GpuControl;
+    public static AmdGpuControl? AmdDisplayControl;
 
     public static float? cpuTemp = -1;
     public static float? gpuTemp = -1;
@@ -950,8 +951,19 @@ public static class HardwareControl
     public static void DisposeGpuControl()
     {
         bool wasNvidia = GpuControl is NvidiaGpuControl;
+        bool wasAmdSameAsGpu = ReferenceEquals(GpuControl, AmdDisplayControl);
         GpuControl?.Dispose();
         GpuControl = null;
+
+        if (wasAmdSameAsGpu)
+            AmdDisplayControl = null;
+
+        if (AmdDisplayControl is not null)
+        {
+            AmdDisplayControl.Dispose();
+            AmdDisplayControl = null;
+        }
+
         if (wasNvidia)
         {
             NvmlHelper.Shutdown();
@@ -994,23 +1006,36 @@ public static class HardwareControl
             {
                 GpuControl = _gpuControl;
                 Logger.WriteLine(GpuControl.FullName);
-                return;
             }
-
-            _gpuControl.Dispose();
-
-            _gpuControl = new AmdGpuControl();
-            if (_gpuControl.IsValid)
+            else
             {
-                GpuControl = _gpuControl;
-                if (GpuControl.FullName.Contains("6850M")) AppConfig.Set("xgm_special", 1);
-                Logger.WriteLine(GpuControl.FullName);
-                return;
+                _gpuControl.Dispose();
             }
-            _gpuControl.Dispose();
 
-            Logger.WriteLine("dGPU not found");
-            GpuControl = null;
+            AmdDisplayControl = new AmdGpuControl();
+            if (AmdDisplayControl.IsValid)
+            {
+                if (GpuControl is null)
+                {
+                    GpuControl = AmdDisplayControl;
+                    if (GpuControl.FullName.Contains("6850M")) AppConfig.Set("xgm_special", 1);
+                    Logger.WriteLine(GpuControl.FullName);
+                }
+                else
+                {
+                    Logger.WriteLine("AMD display control ready: " + AmdDisplayControl.FullName);
+                }
+            }
+            else
+            {
+                AmdDisplayControl.Dispose();
+                AmdDisplayControl = null;
+            }
+
+            if (GpuControl is null)
+            {
+                Logger.WriteLine("dGPU not found");
+            }
 
 
         }

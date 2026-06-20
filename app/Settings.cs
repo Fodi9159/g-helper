@@ -5,6 +5,7 @@ using GHelper.Battery;
 using GHelper.Display;
 using GHelper.Fan;
 using GHelper.Gpu;
+using GHelper.Gpu.AMD;
 using GHelper.Helpers;
 using GHelper.Input;
 using GHelper.Mode;
@@ -179,6 +180,7 @@ namespace GHelper
             buttonMiniled.Click += ButtonMiniled_Click;
             buttonFHD.Click += ButtonFHD_Click;
             buttonHDRControl.Click += ButtonHDRControl_Click;
+            buttonFreeSync.Click += ButtonFreeSync_Click;
 
             buttonQuit.Click += ButtonQuit_Click;
 
@@ -335,6 +337,20 @@ namespace GHelper
         private void ButtonHDRControl_Click(object? sender, EventArgs e)
         {
             ScreenControl.ToogleHDRControl();
+        }
+
+        private void ButtonFreeSync_Click(object? sender, EventArgs e)
+        {
+            var amdGpuControl = HardwareControl.AmdDisplayControl ?? HardwareControl.GpuControl as AmdGpuControl;
+            if (amdGpuControl is null) return;
+
+            if (!amdGpuControl.TryGetFreeSyncState(out int current, out _, out _, out _, out _)) return;
+
+            bool enabled = current == 0;
+            if (amdGpuControl.SetFreeSync(enabled))
+            {
+                RefreshSensors(true);
+            }
         }
 
         private void SliderBattery_ValueChanged(object? sender, EventArgs e)
@@ -1503,6 +1519,22 @@ namespace GHelper
             }
 
             if (advancedColor) labelVisual.Text = Properties.Strings.VisualModesHDR;
+
+            var amdGpuControl = HardwareControl.AmdDisplayControl ?? HardwareControl.GpuControl as AmdGpuControl;
+
+            if (amdGpuControl is not null &&
+                amdGpuControl.TryGetFreeSyncState(out int currentFreeSync, out _, out _, out _, out _))
+            {
+                buttonFreeSync.Visible = true;
+                ButtonEnabled(buttonFreeSync, screenEnabled && !hdr);
+                buttonFreeSync.Activated = currentFreeSync > 0;
+                buttonFreeSync.Text = currentFreeSync > 0 ? "FreeSync On" : "FreeSync Off";
+                buttonFreeSync.BorderColor = currentFreeSync > 0 ? colorTurbo : colorStandard;
+            }
+            else
+            {
+                buttonFreeSync.Visible = false;
+            }
             if (!screenEnabled) labelVisual.Text = Properties.Strings.VisualModesScreen;
 
             if (!screenEnabled || advancedColor)
