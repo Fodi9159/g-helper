@@ -345,9 +345,13 @@ namespace GHelper
             if (!amdGpuControl.TryGetFreeSyncState(out int current, out _, out _, out _, out _)) return;
 
             bool enabled = current == 0;
-            if (amdGpuControl.SetFreeSync(enabled))
+            amdGpuControl.SetFreeSync(enabled);
+
+            if (amdGpuControl.TryGetFreeSyncState(out int currentFreeSync, out _, out _, out _, out _))
             {
-                RefreshSensors(true);
+                buttonFreeSync.Activated = currentFreeSync > 0;
+                buttonFreeSync.Text = currentFreeSync > 0 ? "FreeSync On" : "FreeSync Off";
+                buttonFreeSync.BorderColor = currentFreeSync > 0 ? colorTurbo : colorStandard;
             }
         }
 

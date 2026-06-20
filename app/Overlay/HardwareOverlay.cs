@@ -733,9 +733,7 @@ namespace GHelper.Overlay
         }
 
         private bool AreDragKeysDown() =>
-            (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0 &&
-            (GetAsyncKeyState(VK_SHIFT)   & 0x8000) != 0 &&
-            (GetAsyncKeyState(VK_MENU)    & 0x8000) != 0;
+            (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
 
         private void SetTransparentStyle(bool transparent)
         {
