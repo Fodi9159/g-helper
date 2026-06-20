@@ -49,6 +49,21 @@ public struct ADLPMLogDataOutput
 }
 
 [StructLayout(LayoutKind.Sequential)]
+public struct ADLFreeSyncCap
+{
+    public int iCaps;
+    public int iMinRefreshRateInMicroHz;
+    public int iMaxRefreshRateInMicroHz;
+    public byte ucLabelIndex;
+
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+    public byte[] cReserved;
+
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+    public int[] iReserved;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public struct ADLGcnInfo
 {
     public int CuCount; //Number of compute units on the ASIC.
@@ -513,6 +528,41 @@ public class Adl2
             out int numDisplays,
             out nint displayInfoArray,
             int forceDetect
+        );
+
+        [DllImport(Atiadlxx_FileName)]
+        public static extern int ADL2_Display_NumberOfDisplays_Get(
+            nint adlContextHandle,
+            int adapterIndex,
+            out int numDisplays
+        );
+
+        [DllImport(Atiadlxx_FileName)]
+        public static extern int ADL2_Display_FreeSync_Cap(
+            nint adlContextHandle,
+            int adapterIndex,
+            int iDisplayIndex,
+            out ADLFreeSyncCap lpFreeSyncCaps
+        );
+
+        [DllImport(Atiadlxx_FileName)]
+        public static extern int ADL2_Display_FreeSyncState_Get(
+            nint adlContextHandle,
+            int iAdapterIndex,
+            int iDisplayIndex,
+            out int lpCurrent,
+            out int lpDefault,
+            out int lpMinRefreshRateInMicroHz,
+            out int lpMaxRefreshRateInMicroHz
+        );
+
+        [DllImport(Atiadlxx_FileName)]
+        public static extern int ADL2_Display_FreeSyncState_Set(
+            nint adlContextHandle,
+            int iAdapterIndex,
+            int iDisplayIndex,
+            int iSetting,
+            int iRefreshRateInMicroHz
         );
 
         [DllImport(Atiadlxx_FileName)]
