@@ -1,4 +1,4 @@
-name: Custom Build
+name: Custom Build & Release
 
 on:
   workflow_dispatch:
@@ -69,23 +69,75 @@ jobs:
 
           Build artifact was **not** published this run."
 
-      - name: Setup .NET
+      - name: Check upstream version
         if: steps.rebase.outcome == 'success'
+        id: version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get latest upstream release tag
+          UPSTREAM_TAG=$(curl -s "https://api.github.com/repos/seerge/g-helper/releases/latest" | grep '"tag_name"' | cut -d'"' -f4)
+          VERSION="${UPSTREAM_TAG#v}"
+          echo "Latest upstream: $UPSTREAM_TAG -> version $VERSION"
+
+          # Check if we already have a release for this version
+          OUR_TAGS=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases" | grep '"tag_name"' | cut -d'"' -f4)
+
+          if echo "$OUR_TAGS" | grep -qF "$UPSTREAM_TAG"; then
+            echo "Release $UPSTREAM_TAG already exists on fork — skipping"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "New upstream version: $VERSION"
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "tag=$UPSTREAM_TAG" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup .NET
+        if: steps.rebase.outcome == 'success' && steps.version.outputs.skip == 'false'
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
 
-      - name: Publish custom G-Helper
-        if: steps.rebase.outcome == 'success'
+      - name: Update csproj version
+        if: steps.rebase.outcome == 'success' && steps.version.outputs.skip == 'false'
+        shell: bash
         run: |
-          dotnet publish app/GHelper.csproj --configuration Release --runtime win-x64 --self-contained false /p:PublishSingleFile=true
+          VERSION="${{ steps.version.outputs.version }}"
+          sed -i "s/<AssemblyVersion>.*<\/AssemblyVersion>/<AssemblyVersion>$VERSION<\/AssemblyVersion>/" app/GHelper.csproj
+          sed -i "s/<AssemblyFileVersion>.*<\/AssemblyFileVersion>/<AssemblyFileVersion>$VERSION<\/AssemblyFileVersion>/" app/GHelper.csproj
 
-      - name: Upload custom EXE
-        if: steps.rebase.outcome == 'success'
-        uses: actions/upload-artifact@v4
-        with:
-          name: GHelper-keyboard-only-backlight
-          path: app/bin/Release/net8.0-windows/win-x64/publish/GHelper.exe
+      - name: Publish
+        if: steps.rebase.outcome == 'success' && steps.version.outputs.skip == 'false'
+        run: |
+          dotnet publish app/GHelper.sln --configuration Release --runtime win-x64 -p:PublishSingleFile=true --no-self-contained
+
+      - name: Create ZIP
+        if: steps.rebase.outcome == 'success' && steps.version.outputs.skip == 'false'
+        run: |
+          powershell Compress-Archive -Path "app/bin/x64/Release/net8.0-windows/win-x64/publish/*" -DestinationPath GHelper.zip -Force
+
+      - name: Create Release
+        if: steps.rebase.outcome == 'success' && steps.version.outputs.skip == 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Create release and upload zip
+          gh release create "$TAG" GHelper.zip \
+            --repo "${{ github.repository }}" \
+            --title "G-Helper $TAG" \
+            --notes "Auto-built from upstream [seerge/g-helper]($TAG) with custom fork patches."
+
+      - name: Push rebased main
+        if: steps.rebase.outcome == 'success' && steps.version.outputs.skip == 'false'
+        shell: bash
+        run: |
+          git push --force-with-lease origin main
 
       - name: Notify sync success
         if: steps.rebase.outcome == 'success'
@@ -93,13 +145,21 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          UPSTREAM_SHA=$(git rev-parse upstream/main)
+          UPSTREAM_SHA=$(git rev-parse upstream/main 2>/dev/null || echo "unknown")
           UPSTREAM_SHORT=$(echo $UPSTREAM_SHA | cut -c1-7)
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [[ "${{ steps.version.outputs.skip }}" == "false" ]]; then
+            TAG="${{ steps.version.outputs.tag }}"
+            MSG="New release **$TAG** created: [Download]($RUN_URL)"
+          else
+            MSG="No new upstream release — already up to date."
+          fi
+
           gh issue create --repo "${{ github.repository }}" \
-            --title "Upstream sync OK — ${UPSTREAM_SHORT}" \
-            --body "Successfully rebased and built on upstream [${UPSTREAM_SHORT}](https://github.com/seerge/g-helper/commit/${UPSTREAM_SHA}).
+            --title "Upstream sync — ${UPSTREAM_SHORT}" \
+            --body "Synced with upstream [${UPSTREAM_SHORT}](https://github.com/seerge/g-helper/commit/${UPSTREAM_SHA}).
 
-          Build artifact: [Download here](${RUN_URL})
+          ${MSG}
 
-          No conflicts detected. Custom changes are up to date."
+          Build artifact: [View run](${RUN_URL})"
