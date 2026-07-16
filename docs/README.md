@@ -1,6 +1,9 @@
 # G-Helper - Lightweight control tool for Asus laptops
 
-Small and lightweight Armoury Crate alternative for Asus laptops offering almost same functionality with a much smaller footprint. Works with all popular models, such as ROG Zephyrus G14, G15, G16, M16, Flow X13, Flow X16, Flow Z13, DUO, TUF Series, Strix or Scar Series, ProArt, Vivobook, Zenbook, Expertbook, ROG Ally or Ally X and many more!
+> ⚠️ **Custom fork** by [Fodi9159](https://github.com/Fodi9159) — auto-synced with [seerge/g-helper](https://github.com/seerge/g-helper) with additional patches:
+> - 🟢 **AMD FreeSync toggle** — enable/disable FreeSync from the screen settings panel
+> - 🔧 **Fan sensor swap fix** — corrected swapped CPU/GPU fan readings
+> - ⌨️ **Keyboard backlight fix** — low-level keyboard activity tracking prevents backlight from turning off while typing
 
 [![GitHub release](https://g-helper.com/badge/release.svg)](https://GitHub.com/seerge/g-helper/releases/)
 [![Downloads](https://g-helper.com/badge/downloads.svg)](https://GitHub.com/seerge/g-helper/releases/)
