@@ -37,6 +37,12 @@ namespace GHelper.AutoUpdate
             });
         }
 
+        public void ForceCheckForUpdates()
+        {
+            lastUpdate = 0;
+            CheckForUpdates();
+        }
+
         public void Update()
         {
             if (update)
