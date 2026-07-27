@@ -116,7 +116,7 @@ jobs:
       - name: Create ZIP
         if: steps.rebase.outcome == 'success' && steps.version.outputs.skip == 'false'
         run: |
-          powershell Compress-Archive -Path "app/bin/x64/Release/net8.0-windows/win-x64/publish/*" -DestinationPath GHelper.zip -Force
+          powershell Compress-Archive -Path "app/bin/x64/Release/net8.0-windows/win-x64/publish/GHelper.exe" -DestinationPath GHelper.zip -Force
 
       - name: Create Release
         if: steps.rebase.outcome == 'success' && steps.version.outputs.skip == 'false'
