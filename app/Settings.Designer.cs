@@ -1987,7 +1987,6 @@ namespace GHelper
             panelVersion.Controls.Add(buttonEnergySaver);
             panelVersion.Controls.Add(buttonAmdOled);
             panelVersion.Controls.Add(buttonArmoury);
-            panelVersion.Controls.Add(buttonCheckUpdate);
             panelVersion.Controls.Add(labelVersion);
             panelVersion.Dock = DockStyle.Top;
             panelVersion.Location = new Point(11, 1837);
@@ -2099,27 +2098,7 @@ namespace GHelper
             buttonHDRControl.UseVisualStyleBackColor = false;
             buttonHDRControl.Visible = false;
             // 
-            // buttonCheckUpdate
-            // 
-            buttonCheckUpdate = new RButton();
-            buttonCheckUpdate.Activated = false;
-            buttonCheckUpdate.BackColor = SystemColors.ControlLight;
-            buttonCheckUpdate.BorderColor = Color.Transparent;
-            buttonCheckUpdate.BorderRadius = 2;
-            buttonCheckUpdate.Dock = DockStyle.Right;
-            buttonCheckUpdate.FlatAppearance.BorderSize = 0;
-            buttonCheckUpdate.FlatStyle = FlatStyle.Flat;
-            buttonCheckUpdate.Font = new Font("Segoe UI", 7.125F, FontStyle.Bold);
-            buttonCheckUpdate.ForeColor = SystemColors.ControlDark;
-            buttonCheckUpdate.Margin = new Padding(0);
-            buttonCheckUpdate.Name = "buttonCheckUpdate";
-            buttonCheckUpdate.Secondary = true;
-            buttonCheckUpdate.Size = new Size(90, 40);
-            buttonCheckUpdate.TabIndex = 41;
-            buttonCheckUpdate.Text = "Check";
-            buttonCheckUpdate.UseVisualStyleBackColor = false;
-            // 
-            // buttonFreeSync
+            // labelVersion
             // 
             buttonFreeSync.Activated = false;
             buttonFreeSync.BackColor = SystemColors.ControlLightLight;
@@ -2348,7 +2327,6 @@ namespace GHelper
         private RButton buttonAmdOled;
         private RButton buttonArmoury;
         private RButton buttonHDRControl;
-        private RButton buttonCheckUpdate;
         private Panel panelRearLight;
         private TableLayoutPanel tableLayoutRearLight;
         private RColorButton buttonRearColor;

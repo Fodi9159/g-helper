@@ -16,6 +16,7 @@ namespace GHelper.AutoUpdate
         public bool update = false;
 
         static long lastUpdate;
+        bool manualCheck = false;
 
         public AutoUpdateControl(SettingsForm settingsForm)
         {
@@ -39,6 +40,7 @@ namespace GHelper.AutoUpdate
 
         public void ForceCheckForUpdates()
         {
+            manualCheck = true;
             lastUpdate = 0;
             CheckForUpdates();
         }
@@ -119,9 +121,9 @@ namespace GHelper.AutoUpdate
 
                             settings.Invoke((System.Windows.Forms.MethodInvoker)delegate
                             {
-                                dialogResult = MessageBox.Show(settings, Properties.Strings.DownloadUpdate + ": G-Helper " + tag + "?", "Update", MessageBoxButtons.YesNo);
+                                dialogResult = MessageBox.Show(settings, $"A new version is available!\n\nCurrent: {appVersion.Major}.{appVersion.Minor}.{appVersion.Build}\nNew:     {tag}\n\nWould you like to download and install it?", "Update Available", MessageBoxButtons.YesNo);
                             });
-                            
+
                             if (dialogResult == DialogResult.Yes)
                                 AutoUpdate(url);
                             else
@@ -132,7 +134,16 @@ namespace GHelper.AutoUpdate
                     else
                     {
                         Logger.WriteLine($"Latest version {appVersion}");
+                        if (manualCheck)
+                        {
+                            settings.Invoke((System.Windows.Forms.MethodInvoker)delegate
+                            {
+                                MessageBox.Show(settings, $"No update available.\nYou're up to date (v{appVersion.Major}.{appVersion.Minor}.{appVersion.Build}).", "Check for Update", MessageBoxButtons.OK);
+                            });
+                        }
                     }
+
+                    manualCheck = false;
 
                 }
             }
