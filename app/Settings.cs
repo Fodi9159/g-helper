@@ -98,8 +98,6 @@ namespace GHelper
             buttonQuit.Text = Properties.Strings.Quit;
             buttonUpdates.Text = Properties.Strings.Updates;
             buttonDonate.Text = Properties.Strings.Donate;
-            buttonCheckUpdate.Text = "Check Update";
-
             buttonController.Text = Properties.Strings.Controller;
             labelAlly.Text = Properties.Strings.AllyController;
 
@@ -239,7 +237,6 @@ namespace GHelper
             buttonFHD.MouseLeave += ButtonScreen_MouseLeave;
 
             buttonUpdates.Click += ButtonUpdates_Click;
-            buttonCheckUpdate.Click += ButtonCheckUpdate_Click;
 
             sliderBattery.MouseUp += SliderBattery_MouseUp;
             sliderBattery.KeyUp += SliderBattery_KeyUp;
@@ -980,11 +977,6 @@ namespace GHelper
 
 
         private void LabelVersion_Click(object? sender, EventArgs e)
-        {
-            updateControl.Update();
-        }
-
-        private void ButtonCheckUpdate_Click(object? sender, EventArgs e)
         {
             updateControl.ForceCheckForUpdates();
         }
