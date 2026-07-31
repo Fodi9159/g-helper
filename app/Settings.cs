@@ -67,6 +67,8 @@ namespace GHelper
             matrixControl = new AniMatrixControl(this);
             allyControl = new AllyControl(this);
 
+            buttonWindows.Text = Properties.Strings.WindowsMode;
+            buttonWindows.Image = CreateWindowsLogo(48);
             buttonSilent.Text = Properties.Strings.Silent;
             buttonBalanced.Text = Properties.Strings.Balanced;
             buttonTurbo.Text = Properties.Strings.Turbo;
@@ -109,6 +111,7 @@ namespace GHelper
             buttonQuit.AccessibleName = Properties.Strings.Quit;
             buttonUpdates.AccessibleName = Properties.Strings.BiosAndDriverUpdates;
             panelPerformance.AccessibleName = Properties.Strings.PerformanceMode;
+            buttonWindows.AccessibleName = Properties.Strings.WindowsMode;
             buttonSilent.AccessibleName = Properties.Strings.Silent;
             buttonBalanced.AccessibleName = Properties.Strings.Balanced;
             buttonTurbo.AccessibleName = Properties.Strings.Turbo;
@@ -133,6 +136,7 @@ namespace GHelper
             Deactivate += SettingsForm_LostFocus;
             Activated += SettingsForm_Focused;
 
+            buttonWindows.BorderColor = colorStandard;
             buttonSilent.BorderColor = colorEco;
             buttonBalanced.BorderColor = colorStandard;
             buttonTurbo.BorderColor = colorTurbo;
@@ -161,6 +165,7 @@ namespace GHelper
             buttonArmoury.ForeColor = SystemColors.ControlLightLight;
             buttonArmoury.Click += ButtonArmoury_Click;
 
+            buttonWindows.Click += ButtonWindows_Click;
             buttonSilent.Click += ButtonSilent_Click;
             buttonBalanced.Click += ButtonBalanced_Click;
             buttonTurbo.Click += ButtonTurbo_Click;
@@ -1751,6 +1756,7 @@ namespace GHelper
 
         protected void VisualiseMode(int mode)
         {
+            buttonWindows.Activated = false;
             buttonSilent.Activated = false;
             buttonBalanced.Activated = false;
             buttonTurbo.Activated = false;
@@ -1758,6 +1764,9 @@ namespace GHelper
 
             switch (mode)
             {
+                case AsusACPI.PerformanceWindows:
+                    buttonWindows.Activated = true;
+                    break;
                 case AsusACPI.PerformanceSilent:
                     buttonSilent.Activated = true;
                     break;
@@ -2006,6 +2015,40 @@ namespace GHelper
             Icon? oldIcon = Program.trayIcon.Icon;
             Program.trayIcon.Icon = newIcon;
             oldIcon?.Dispose();
+        }
+
+        private void ButtonWindows_Click(object? sender, EventArgs e)
+        {
+            Program.modeControl.SetPerformanceMode(AsusACPI.PerformanceWindows);
+        }
+
+        // Classic Windows flag: 4 colored panes meeting at the center
+        private static Bitmap CreateWindowsLogo(int size)
+        {
+            Bitmap bmp = new Bitmap(size, size);
+            using (System.Drawing.Graphics g = System.Drawing.Graphics.FromImage(bmp))
+            {
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                Color[] colors =
+                {
+                    Color.FromArgb(242, 80, 34),   // red
+                    Color.FromArgb(127, 186, 0),   // green
+                    Color.FromArgb(0, 164, 239),   // blue
+                    Color.FromArgb(255, 185, 0)    // yellow
+                };
+                float c = size / 2f;
+                float w = size * 0.30f;
+                for (int i = 0; i < 4; i++)
+                {
+                    g.TranslateTransform(c, c);
+                    g.RotateTransform(45 + 90 * i);
+                    g.TranslateTransform(-c, -c);
+                    using (SolidBrush brush = new SolidBrush(colors[i]))
+                        g.FillRectangle(brush, c - w, c - w, w, w);
+                    g.ResetTransform();
+                }
+            }
+            return bmp;
         }
 
         private void ButtonSilent_Click(object? sender, EventArgs e)

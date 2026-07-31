@@ -57,6 +57,7 @@ namespace GHelper
             checkStartup = new CheckBox();
             panelPerformance = new Panel();
             tablePerf = new TableLayoutPanel();
+            buttonWindows = new RButton();
             buttonSilent = new RButton();
             buttonBalanced = new RButton();
             buttonTurbo = new RButton();
@@ -590,15 +591,17 @@ namespace GHelper
             // 
             tablePerf.AutoSize = true;
             tablePerf.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            tablePerf.ColumnCount = 4;
-            tablePerf.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
-            tablePerf.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
-            tablePerf.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
-            tablePerf.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
-            tablePerf.Controls.Add(buttonSilent, 0, 0);
-            tablePerf.Controls.Add(buttonBalanced, 1, 0);
-            tablePerf.Controls.Add(buttonTurbo, 2, 0);
-            tablePerf.Controls.Add(buttonFans, 3, 0);
+            tablePerf.ColumnCount = 5;
+            tablePerf.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
+            tablePerf.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
+            tablePerf.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
+            tablePerf.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
+            tablePerf.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
+            tablePerf.Controls.Add(buttonWindows, 0, 0);
+            tablePerf.Controls.Add(buttonSilent, 1, 0);
+            tablePerf.Controls.Add(buttonBalanced, 2, 0);
+            tablePerf.Controls.Add(buttonTurbo, 3, 0);
+            tablePerf.Controls.Add(buttonFans, 4, 0);
             tablePerf.Dock = DockStyle.Top;
             tablePerf.Location = new Point(20, 60);
             tablePerf.Margin = new Padding(8, 4, 8, 4);
@@ -607,6 +610,28 @@ namespace GHelper
             tablePerf.RowStyles.Add(new RowStyle(SizeType.Absolute, 128F));
             tablePerf.Size = new Size(787, 128);
             tablePerf.TabIndex = 29;
+            // 
+            // buttonWindows
+            // 
+            buttonWindows.Activated = false;
+            buttonWindows.BackColor = SystemColors.ControlLightLight;
+            buttonWindows.BackgroundImageLayout = ImageLayout.None;
+            buttonWindows.BorderColor = Color.Transparent;
+            buttonWindows.BorderRadius = 5;
+            buttonWindows.Dock = DockStyle.Fill;
+            buttonWindows.FlatAppearance.BorderSize = 0;
+            buttonWindows.FlatStyle = FlatStyle.Flat;
+            buttonWindows.ForeColor = SystemColors.ControlText;
+            buttonWindows.ImageAlign = ContentAlignment.BottomCenter;
+            buttonWindows.Location = new Point(4, 4);
+            buttonWindows.Margin = new Padding(4);
+            buttonWindows.Name = "buttonWindows";
+            buttonWindows.Secondary = false;
+            buttonWindows.Size = new Size(150, 120);
+            buttonWindows.TabIndex = 0;
+            buttonWindows.Text = "&Windows";
+            buttonWindows.TextImageRelation = TextImageRelation.ImageAboveText;
+            buttonWindows.UseVisualStyleBackColor = false;
             // 
             // buttonSilent
             // 
@@ -2226,6 +2251,7 @@ namespace GHelper
         private CheckBox checkStartup;
         private Panel panelPerformance;
         private TableLayoutPanel tablePerf;
+        private RButton buttonWindows;
         private RButton buttonTurbo;
         private RButton buttonBalanced;
         private RButton buttonSilent;

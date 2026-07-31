@@ -369,3 +369,10 @@ FodyWeavers.xsd
 
 tools/
 app/*.lscache
+
+# Probe tools / artifacts
+ec_probe.exe
+probe.exe
+probe_fancurve.exe
+probe_fanmode.exe
+bios_work/

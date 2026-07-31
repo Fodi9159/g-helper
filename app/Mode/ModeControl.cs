@@ -204,6 +204,12 @@ namespace GHelper.Mode
             settings.FansInit();
         }
 
+        // SyncEcMode disabled: on some ASUS models the EC mode readback is unreliable,
+        // so we do not let the EC override the user-selected mode from user mode.
+        public void SyncEcMode()
+        {
+        }
+
 
         private void ModeToggleTimer_Elapsed(object? sender, System.Timers.ElapsedEventArgs e)
         {
