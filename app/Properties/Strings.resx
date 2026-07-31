@@ -818,6 +818,9 @@ Do you still want to continue?</value>
   <data name="Turbo" xml:space="preserve">
     <value>Turbo</value>
   </data>
+  <data name="WindowsMode" xml:space="preserve">
+    <value>Windows</value>
+  </data>
   <data name="TurnedOff" xml:space="preserve">
     <value>Turned off</value>
   </data>

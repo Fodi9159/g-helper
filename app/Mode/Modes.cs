@@ -38,12 +38,13 @@
         {
             Dictionary<int, string> modes = new Dictionary<int, string>
             {
+              {3, Properties.Strings.WindowsMode},
               {2, Properties.Strings.Silent},
               {0, Properties.Strings.Balanced},
               {1, Properties.Strings.Turbo}
             };
 
-            for (int i = 3; i < maxModes; i++)
+            for (int i = 4; i < maxModes; i++)
             {
                 if (Exists(i)) modes.Add(i, GetName(i));
             }
@@ -53,8 +54,8 @@
 
         public static List<int> GetList()
         {
-            List<int> modes = new() { 2, 0, 1 };
-            for (int i = 3; i < maxModes; i++)
+            List<int> modes = new() { 3, 2, 0, 1 };
+            for (int i = 4; i < maxModes; i++)
             {
                 if (Exists(i)) modes.Add(i);
             }
@@ -74,12 +75,12 @@
         {
             int currentMode = GetCurrent();
 
-            for (int i = 3; i < maxModes; i++)
+            for (int i = 4; i < maxModes; i++)
             {
                 if (Exists(i)) continue;
 
                 AppConfig.Set("mode_base_" + i, GetCurrentBase());
-                AppConfig.Set("mode_name_" + i, "Custom " + (i - 2));
+                AppConfig.Set("mode_name_" + i, "Custom " + (i - 3));
 
                 if (Exists(currentMode))
                 {
@@ -130,7 +131,7 @@
 
         public static bool IsCurrentCustom()
         {
-            return GetCurrent() > 2;
+            return GetCurrent() > 3;
         }
 
         public static void SetCurrent(int mode)
@@ -156,7 +157,7 @@
 
         public static int GetBase(int mode)
         {
-            if (mode >= 0 && mode <= 2)
+            if (mode >= 0 && mode <= 3)
                 return mode;
             else
                 return AppConfig.Get("mode_base_" + mode);
@@ -172,6 +173,8 @@
                     return Properties.Strings.Turbo;
                 case 2:
                     return Properties.Strings.Silent;
+                case 3:
+                    return Properties.Strings.WindowsMode;
                 default:
                     return AppConfig.GetString("mode_name_" + mode);
             }
