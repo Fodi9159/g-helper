@@ -98,7 +98,7 @@ jobs:
       - name: Push synced main
         if: env.custom_missing != 'true'
         run: |
-          git push origin main
+          git push --force-with-lease origin main
           echo "Synced main pushed: $(git rev-parse --short HEAD)"
 
   build-and-release:
