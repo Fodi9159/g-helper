@@ -2727,6 +2727,15 @@ namespace GHelper.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Windows.
+        /// </summary>
+        internal static string WindowsMode {
+            get {
+                return ResourceManager.GetString("WindowsMode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Turned off.
         /// </summary>
         internal static string TurnedOff {
