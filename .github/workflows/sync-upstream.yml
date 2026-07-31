@@ -53,10 +53,12 @@ jobs:
           UPSTREAM_BRANCH=$(curl -s https://api.github.com/repos/seerge/g-helper | jq -r '.default_branch')
           echo "Merging upstream/$UPSTREAM_BRANCH"
 
-          git merge -X theirs upstream/$UPSTREAM_BRANCH --no-edit
-
-          # Preserve this fork's workflow files from upstream overwrites
-          git checkout HEAD -- .github/workflows || true
+          if ! git merge -X theirs upstream/$UPSTREAM_BRANCH --no-edit; then
+            echo "Merge conflict detected, resolving workflow files in favor of fork"
+            git checkout --ours .github/workflows || true
+            git add .github/workflows
+            git commit -m "Merge upstream/$UPSTREAM_BRANCH, preserve fork workflows" --no-edit
+          fi
 
           git push origin main
 
