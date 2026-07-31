@@ -42,7 +42,7 @@ jobs:
         if: steps.check.outputs.new_release == 'true'
         run: |
           git remote add upstream https://github.com/seerge/g-helper.git || true
-          git fetch upstream --tags
+          git fetch upstream --tags --force
 
           UPSTREAM_BRANCH=$(curl -s https://api.github.com/repos/seerge/g-helper | jq -r '.default_branch')
           echo "Merging upstream/$UPSTREAM_BRANCH"
