@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   sync:
@@ -14,64 +15,101 @@ jobs:
     outputs:
       new_release: ${{ steps.check.outputs.new_release }}
       upstream_tag: ${{ steps.check.outputs.upstream_tag }}
-      upstream_url: ${{ steps.check.outputs.upstream_url }}
     steps:
       - name: Checkout fork
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check for upstream release
+      - name: Check for new upstream release
         id: check
         run: |
-          UPSTREAM_RELEASE=$(curl -s https://api.github.com/repos/seerge/g-helper/releases/latest)
-          UPSTREAM_TAG=$(echo "$UPSTREAM_RELEASE" | jq -r '.tag_name')
-          UPSTREAM_URL=$(echo "$UPSTREAM_RELEASE" | jq -r '.html_url')
-
-          echo "Upstream latest: $UPSTREAM_TAG"
-
-          if git rev-parse -q --verify "refs/tags/$UPSTREAM_TAG" >/dev/null; then
-            echo "Tag $UPSTREAM_TAG already exists locally"
-            echo "new_release=false" >> $GITHUB_OUTPUT
+          UPSTREAM_TAG=$(curl -s https://api.github.com/repos/seerge/g-helper/releases/latest | jq -r '.tag_name')
+          echo "Upstream latest release: $UPSTREAM_TAG"
+          if [ -z "$UPSTREAM_TAG" ] || [ "$UPSTREAM_TAG" = "null" ]; then
+            echo "Could not read upstream release"
+            echo "new_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git rev-parse -q --verify "refs/tags/$UPSTREAM_TAG" >/dev/null 2>&1; then
+            echo "Tag $UPSTREAM_TAG already released on fork — nothing to do"
+            echo "new_release=false" >> "$GITHUB_OUTPUT"
           else
-            echo "New release detected: $UPSTREAM_TAG"
-            echo "new_release=true" >> $GITHUB_OUTPUT
-            echo "upstream_tag=$UPSTREAM_TAG" >> $GITHUB_OUTPUT
-            echo "upstream_url=$UPSTREAM_URL" >> $GITHUB_OUTPUT
+            echo "New upstream release detected: $UPSTREAM_TAG"
+            echo "new_release=true" >> "$GITHUB_OUTPUT"
+            echo "upstream_tag=$UPSTREAM_TAG" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Sync with upstream
+      - name: Sync with upstream (rebase, fork custom code wins)
         if: steps.check.outputs.new_release == 'true'
         run: |
-          git remote add upstream https://github.com/seerge/g-helper.git || true
+          set -e
+          git remote add upstream https://github.com/seerge/g-helper.git 2>/dev/null || git remote set-url upstream https://github.com/seerge/g-helper.git
           git fetch upstream --tags --force
 
-          git config --global user.email "github-actions@users.noreply.github.com"
-          git config --global user.name "github-actions"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          UPSTREAM_BRANCH=$(curl -s https://api.github.com/repos/seerge/g-helper | jq -r '.default_branch')
-          echo "Merging upstream/$UPSTREAM_BRANCH"
+          PRE_SYNC_SHA=$(git rev-parse HEAD)
+          echo "Pre-sync fork main: $PRE_SYNC_SHA"
 
-          if ! git merge -X theirs upstream/$UPSTREAM_BRANCH --no-edit; then
-            echo "Merge conflict detected, resolving workflow files in favor of fork"
-            git checkout --ours .github/workflows || true
-            git add .github/workflows
-            git commit -m "Merge upstream/$UPSTREAM_BRANCH, preserve fork workflows" --no-edit
+          # Replay fork commits on top of latest upstream. During a rebase, -X theirs
+          # means "the replayed fork commit wins", so custom code is preserved even
+          # where upstream touched the same files.
+          if ! git rebase -X theirs upstream/main; then
+            echo "Rebase stopped — resolving residual conflicts (add/delete on workflow files)"
+            for i in 1 2 3 4 5; do
+              UNRESOLVED=$(git diff --name-only --diff-filter=U)
+              [ -z "$UNRESOLVED" ] && break
+              # Add/delete conflicts (e.g. upstream's release.yml vs fork's removal):
+              # the fork does not want upstream workflow files, so remove them
+              git rm -f $UNRESOLVED 2>/dev/null || true
+              git add -A
+              GIT_EDITOR=true git rebase --continue || break
+            done
           fi
 
+          # GITHUB_TOKEN cannot push ANY change to .github/workflows/*. Restore the
+          # fork's exact workflow files so the push contains zero workflow diffs.
+          git checkout "$PRE_SYNC_SHA" -- .github/workflows
+          git add .github/workflows
+          GIT_EDITOR=true git commit -m "Restore fork workflow files after upstream sync" || true
+
+          # Verify the custom code survived the rebase
+          if ! grep -q "WindowsMode" app/Properties/Strings.resx || ! grep -q "Fodi9159" app/AutoUpdate/AutoUpdateControl.cs; then
+            echo "custom_missing=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Alert if custom code was lost
+        if: env.custom_missing == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          EXISTING=$(gh issue list --repo "${{ github.repository }}" --state open \
+            --search "Custom code missing after upstream sync" --json number -q '.[0].number' 2>/dev/null)
+          if [ -z "$EXISTING" ]; then
+            gh issue create --repo "${{ github.repository }}" \
+              --title "Custom code missing after upstream sync" \
+              --body "The rebase onto upstream/main dropped custom fork code (Windows mode or the fork auto-update URL). The sync was **not** pushed. Check the custom commits locally with \`git rebase -X theirs upstream/main\` and fix what dropped, or update the marker checks in \`.github/workflows/sync-upstream.yml\`."
+          fi
+          echo "Custom code missing — aborting sync"
+          exit 1
+
+      - name: Push synced main
+        if: env.custom_missing != 'true'
+        run: |
           git push origin main
+          echo "Synced main pushed: $(git rev-parse --short HEAD)"
 
   build-and-release:
     needs: sync
     if: needs.sync.outputs.new_release == 'true'
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
-      - name: Checkout merged code
+      - name: Checkout synced main
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
           ref: main
 
       - name: Setup .NET
@@ -79,22 +117,29 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Build
-        run: dotnet build app/GHelper.csproj -c Release --no-restore
+      - name: Bump version to upstream release
+        shell: bash
+        run: |
+          TAG="${{ needs.sync.outputs.upstream_tag }}"
+          VERSION="${TAG#v}"
+          sed -i "s|<AssemblyVersion>.*</AssemblyVersion>|<AssemblyVersion>${VERSION}</AssemblyVersion>|" app/GHelper.csproj
+          sed -i "s|<AssemblyFileVersion>.*</AssemblyFileVersion>|<AssemblyFileVersion>${VERSION}</AssemblyFileVersion>|" app/GHelper.csproj
+          echo "Version set to $VERSION"
 
-      - name: Publish
-        run: dotnet publish app/GHelper.csproj -c Release --no-build -o app/bin/x64/Release/net8.0-windows/win-x64/publish
+      - name: Publish single-file exe
+        run: dotnet publish app/GHelper.sln --configuration Release --runtime win-x64 -p:PublishSingleFile=true --no-self-contained
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ needs.sync.outputs.upstream_tag }}
-          name: ${{ needs.sync.outputs.upstream_tag }}
-          body: |
-            Automated sync from upstream seerge/g-helper@${{ needs.sync.outputs.upstream_tag }}
-            Upstream release: ${{ needs.sync.outputs.upstream_url }}
-          files: |
-            app/bin/x64/Release/net8.0-windows/win-x64/publish/GHelper.exe
-            app/bin/x64/Release/net8.0-windows/win-x64/publish/GHelper.zip
+      - name: Package ZIP
+        shell: powershell
+        run: Compress-Archive -Path "app/bin/x64/Release/net8.0-windows/win-x64/publish/GHelper.exe" -DestinationPath GHelper.zip -Force
+
+      - name: Create release on fork
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.sync.outputs.upstream_tag }}"
+          gh release create "$TAG" GHelper.zip \
+            --repo "${{ github.repository }}" \
+            --title "G-Helper $TAG" \
+            --notes "Auto-built from upstream [seerge/g-helper]($TAG) with custom fork patches (Windows mode, FreeSync toggle, fork auto-update)."
