@@ -55,6 +55,8 @@ jobs:
           # Accept upstream's version of release.yml if it exists there but was deleted locally
           if git ls-tree -r upstream/$UPSTREAM_BRANCH --name-only | grep -q "^\.github/workflows/release\.yml$"; then
             git checkout upstream/$UPSTREAM_BRANCH -- .github/workflows/release.yml || true
+            git add .github/workflows/release.yml || true
+            git commit -m "Restore upstream release.yml before merge" || true
           fi
 
           git merge -X theirs upstream/$UPSTREAM_BRANCH --no-edit
