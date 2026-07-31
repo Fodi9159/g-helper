@@ -61,6 +61,9 @@ jobs:
 
           git merge -X theirs upstream/$UPSTREAM_BRANCH --no-edit
 
+          # Restore our workflow files after upstream merge to avoid ref-update permission issues
+          git checkout HEAD -- .github/workflows/sync-upstream.yml || true
+
           git push origin main
 
   build-and-release:
