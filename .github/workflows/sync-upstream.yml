@@ -50,7 +50,7 @@ jobs:
           UPSTREAM_BRANCH=$(curl -s https://api.github.com/repos/seerge/g-helper | jq -r '.default_branch')
           echo "Merging upstream/$UPSTREAM_BRANCH"
 
-          git merge upstream/$UPSTREAM_BRANCH --no-edit
+          git merge -X theirs upstream/$UPSTREAM_BRANCH --no-edit
 
           git push origin main
 
