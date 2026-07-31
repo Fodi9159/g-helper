@@ -47,8 +47,15 @@ jobs:
           git config --global user.email "github-actions@users.noreply.github.com"
           git config --global user.name "github-actions"
 
+          git fetch upstream --tags --force
+
           UPSTREAM_BRANCH=$(curl -s https://api.github.com/repos/seerge/g-helper | jq -r '.default_branch')
           echo "Merging upstream/$UPSTREAM_BRANCH"
+
+          # Accept upstream's version of release.yml if it exists there but was deleted locally
+          if git ls-tree -r upstream/$UPSTREAM_BRANCH --name-only | grep -q "^\.github/workflows/release\.yml$"; then
+            git checkout upstream/$UPSTREAM_BRANCH -- .github/workflows/release.yml || true
+          fi
 
           git merge -X theirs upstream/$UPSTREAM_BRANCH --no-edit
 
