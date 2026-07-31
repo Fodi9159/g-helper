@@ -1,0 +1,89 @@
+name: Sync Upstream and Release
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      new_release: ${{ steps.check.outputs.new_release }}
+      upstream_tag: ${{ steps.check.outputs.upstream_tag }}
+      upstream_url: ${{ steps.check.outputs.upstream_url }}
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for upstream release
+        id: check
+        run: |
+          UPSTREAM_RELEASE=$(curl -s https://api.github.com/repos/seerge/g-helper/releases/latest)
+          UPSTREAM_TAG=$(echo "$UPSTREAM_RELEASE" | jq -r '.tag_name')
+          UPSTREAM_URL=$(echo "$UPSTREAM_RELEASE" | jq -r '.html_url')
+
+          echo "Upstream latest: $UPSTREAM_TAG"
+
+          if git rev-parse -q --verify "refs/tags/$UPSTREAM_TAG" >/dev/null; then
+            echo "Tag $UPSTREAM_TAG already exists locally"
+            echo "new_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "New release detected: $UPSTREAM_TAG"
+            echo "new_release=true" >> $GITHUB_OUTPUT
+            echo "upstream_tag=$UPSTREAM_TAG" >> $GITHUB_OUTPUT
+            echo "upstream_url=$UPSTREAM_URL" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Sync with upstream
+        if: steps.check.outputs.new_release == 'true'
+        run: |
+          git remote add upstream https://github.com/seerge/g-helper.git || true
+          git fetch upstream --tags
+
+          UPSTREAM_BRANCH=$(curl -s https://api.github.com/repos/seerge/g-helper | jq -r '.default_branch')
+          echo "Merging upstream/$UPSTREAM_BRANCH"
+
+          git merge upstream/$UPSTREAM_BRANCH --no-edit
+
+          git push origin main
+
+  build-and-release:
+    needs: sync
+    if: needs.sync.outputs.new_release == 'true'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout merged code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build
+        run: dotnet build app/GHelper.csproj -c Release --no-restore
+
+      - name: Publish
+        run: dotnet publish app/GHelper.csproj -c Release --no-build -o app/bin/x64/Release/net8.0-windows/win-x64/publish
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.sync.outputs.upstream_tag }}
+          name: ${{ needs.sync.outputs.upstream_tag }}
+          body: |
+            Automated sync from upstream seerge/g-helper@${{ needs.sync.outputs.upstream_tag }}
+            Upstream release: ${{ needs.sync.outputs.upstream_url }}
+          files: |
+            app/bin/x64/Release/net8.0-windows/win-x64/publish/GHelper.exe
+            app/bin/x64/Release/net8.0-windows/win-x64/publish/GHelper.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
