@@ -2327,7 +2327,6 @@ namespace GHelper
             string squares = new string('|', filledSquares);
             labelMatrix.Text = $"Slash Lighting: {squares}";
         }
-
         public void VisualiseFnLock()
         {
 
@@ -2345,6 +2344,46 @@ namespace GHelper
             }
         }
 
+        /// <summary>
+        /// Re-reads current hardware state for all buttons and refreshes the UI,
+        /// so every button reflects the latest on/off status. Used when the
+        /// window is opened from the tray.
+        /// </summary>
+        public void RefreshState()
+        {
+            if (InvokeRequired) { Invoke(RefreshState); return; }
+
+            try
+            {
+                // Performance mode buttons (Windows/Silent/Balanced/Turbo)
+                ShowMode(Modes.GetCurrent());
+
+                // GPU mode buttons (Eco/Optimized/Standard/Ultimate) - re-reads ACPI eco/mux
+                Program.gpuControl.InitGPUMode();
+
+                // Screen buttons (Hz, miniLED, HDR, FHD) + FreeSync - re-reads ACPI + ADL2
+                ScreenControl.InitScreen();
+
+                // Keyboard backlight button
+                VisualiseBacklight(InputDispatcher.GetBacklight());
+
+                // Battery limit slider - re-reads the actual ACPI value
+                int batteryLimit = Program.acpi.DeviceGet(AsusACPI.BatteryLimit);
+                if (batteryLimit >= 40 && batteryLimit <= 100)
+                    VisualiseBattery(batteryLimit);
+                else
+                    VisualiseBattery(AppConfig.Get("charge_limit"));
+
+                VisualiseFnLock();
+                VisualiseBatteryFull();
+                UpdateKeyboardLabel();
+                VisualizePeripherals();
+            }
+            catch (Exception ex)
+            {
+                Logger.WriteLine("RefreshState: " + ex.Message);
+            }
+        }
 
         private void ButtonFnLock_Click(object? sender, EventArgs e)
         {
@@ -2352,6 +2391,4 @@ namespace GHelper
         }
 
     }
-
-
 }
