@@ -456,6 +456,10 @@ namespace GHelper
                     settingsForm.Top = screen.WorkingArea.Height - 10 - settingsForm.Height;
 
                 settingsForm.VisualiseGPUMode();
+
+                // Refresh all button states from hardware when the window is opened
+                // from the tray, so every button reflects the latest status
+                settingsForm.RefreshState();
             }
         }
 
