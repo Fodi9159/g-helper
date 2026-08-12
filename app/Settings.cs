@@ -815,6 +815,7 @@ namespace GHelper
                         case 1:
                             Logger.WriteLine("Monitor Power On");
                             if (!Program.SetAutoModes(wakeup: true)) BatteryControl.AutoBattery();
+                            ScreenControl.AutoScreen();
                             Program.hardwareOverlay?.ResumeForDisplayOn();
                             break;
                         case 2:

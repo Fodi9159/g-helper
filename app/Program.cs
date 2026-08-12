@@ -349,12 +349,9 @@ namespace GHelper
                 InputDispatcher.AutoKeyboard();
             }
 
-            bool switched = gpuControl.AutoGPUMode(delay: 1000);
-            if (!switched)
-            {
-                gpuControl.InitGPUMode();
-                ScreenControl.AutoScreen();
-            }
+            gpuControl.AutoGPUMode(delay: 1000);
+            gpuControl.InitGPUMode();
+            ScreenControl.AutoScreen();
 
             ScreenControl.InitMiniled();
             VisualControl.InitBrightness();
