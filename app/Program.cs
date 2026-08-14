@@ -272,6 +272,7 @@ namespace GHelper
                     settingsForm.VisualiseIcon(true);
                     settingsForm.VisualiseFnLock();
                     settingsForm.VisualiseBatteryFull();
+                    settingsForm.VisualiseTheme();
 
                     if (settingsForm.fansForm is not null && settingsForm.fansForm.Text != "")
                         settingsForm.fansForm.InitTheme();

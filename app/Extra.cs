@@ -49,6 +49,7 @@ namespace GHelper
               {"micmute", Properties.Strings.MuteMic},
               {"ghelper", Properties.Strings.OpenGHelper},
               {"overlay", Properties.Strings.Overlay},
+              {"darkmode", Properties.Strings.ToggleDarkMode},
               {"custom", Properties.Strings.Custom}
             };
 
@@ -88,6 +89,10 @@ namespace GHelper
                 case "fnf4":
                     customActions[""] = Properties.Strings.ToggleAura;
                     customActions.Remove("aura");
+                    break;
+                case "fnf5":
+                    customActions[""] = Properties.Strings.PerformanceMode;
+                    customActions.Remove("performance");
                     break;
                 case "fnc":
                     customActions[""] = Properties.Strings.ToggleFnLock;
@@ -205,6 +210,7 @@ namespace GHelper
 
             labelM5.Visible = comboM5.Visible = textM5.Visible = false;
             comboFNF4.AccessibleName = "Fn+F4 Action";
+            comboFNF5.AccessibleName = "Fn+F5 Action";
             comboFNC.AccessibleName = "Fn+C Action";
             comboFNV.AccessibleName = "Fn+V Action";
             comboFNE.AccessibleName = "Fn+Numpad Action";
@@ -293,6 +299,10 @@ namespace GHelper
                 comboFNV.Visible = false;
                 textFNV.Visible = false;
 
+                labelFNF5.Visible = false;
+                comboFNF5.Visible = false;
+                textFNF5.Visible = false;
+
                 SetKeyCombo(comboM3, textM3, "cc");
                 SetKeyCombo(comboM4, textM4, "m4");
                 SetKeyCombo(comboFNF4, textFNF4, "paddle");
@@ -309,6 +319,7 @@ namespace GHelper
                 SetKeyCombo(comboM3, textM3, "m3");
                 SetKeyCombo(comboM4, textM4, "m4");
                 SetKeyCombo(comboFNF4, textFNF4, "fnf4");
+                SetKeyCombo(comboFNF5, textFNF5, "fnf5");
 
                 SetKeyCombo(comboFNC, textFNC, "fnc");
                 SetKeyCombo(comboFNV, textFNV, "fnv");
