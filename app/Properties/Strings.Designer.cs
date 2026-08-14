@@ -781,6 +781,15 @@ namespace GHelper.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Dark Mode.
+        /// </summary>
+        internal static string DarkMode {
+            get {
+                return ResourceManager.GetString("DarkMode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Deceleration.
         /// </summary>
         internal static string Deceleration {
@@ -1463,6 +1472,15 @@ namespace GHelper.Properties {
         internal static string Lighting {
             get {
                 return ResourceManager.GetString("Lighting", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Light Mode.
+        /// </summary>
+        internal static string LightMode {
+            get {
+                return ResourceManager.GetString("LightMode", resourceCulture);
             }
         }
         
@@ -2453,6 +2471,15 @@ namespace GHelper.Properties {
         internal static string ToggleClamshellMode {
             get {
                 return ResourceManager.GetString("ToggleClamshellMode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Toggle Dark Mode.
+        /// </summary>
+        internal static string ToggleDarkMode {
+            get {
+                return ResourceManager.GetString("ToggleDarkMode", resourceCulture);
             }
         }
         

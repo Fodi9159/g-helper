@@ -142,6 +142,8 @@ namespace GHelper
             buttonEnergySaver = new RButton();
             buttonAmdOled = new RButton();
             buttonArmoury = new RButton();
+            buttonLightMode = new RButton();
+            buttonDarkMode = new RButton();
             labelVersion = new Label();
             buttonHDRControl = new RButton();
             panelMatrix.SuspendLayout();
@@ -1808,13 +1810,16 @@ namespace GHelper
             tableVisual.Controls.Add(comboVisual, 0, 0);
             tableVisual.Controls.Add(comboColorTemp, 1, 0);
             tableVisual.Controls.Add(comboGamut, 2, 0);
+            tableVisual.Controls.Add(buttonLightMode, 0, 1);
+            tableVisual.Controls.Add(buttonDarkMode, 1, 1);
             tableVisual.Dock = DockStyle.Top;
             tableVisual.Location = new Point(20, 91);
             tableVisual.Margin = new Padding(8, 4, 8, 4);
             tableVisual.Name = "tableVisual";
             tableVisual.Padding = new Padding(3, 0, 3, 0);
-            tableVisual.RowCount = 1;
+            tableVisual.RowCount = 2;
             tableVisual.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            tableVisual.RowStyles.Add(new RowStyle(SizeType.Absolute, 51F));
             tableVisual.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
             tableVisual.Size = new Size(787, 79);
             tableVisual.TabIndex = 2;
@@ -1841,6 +1846,44 @@ namespace GHelper
             buttonInstallColor.TextImageRelation = TextImageRelation.ImageBeforeText;
             buttonInstallColor.UseVisualStyleBackColor = false;
             buttonInstallColor.Visible = false;
+            // 
+            // buttonLightMode
+            // 
+            buttonLightMode.Activated = false;
+            buttonLightMode.BackColor = SystemColors.ControlLightLight;
+            buttonLightMode.BorderColor = Color.Transparent;
+            buttonLightMode.BorderRadius = 5;
+            buttonLightMode.Dock = DockStyle.Top;
+            buttonLightMode.FlatAppearance.BorderSize = 0;
+            buttonLightMode.FlatStyle = FlatStyle.Flat;
+            buttonLightMode.ForeColor = SystemColors.ControlText;
+            buttonLightMode.Location = new Point(10, 67);
+            buttonLightMode.Margin = new Padding(4);
+            buttonLightMode.Name = "buttonLightMode";
+            buttonLightMode.Secondary = false;
+            buttonLightMode.Size = new Size(252, 51);
+            buttonLightMode.TabIndex = 41;
+            buttonLightMode.Text = "Light Mode";
+            buttonLightMode.UseVisualStyleBackColor = false;
+            // 
+            // buttonDarkMode
+            // 
+            buttonDarkMode.Activated = false;
+            buttonDarkMode.BackColor = SystemColors.ControlLightLight;
+            buttonDarkMode.BorderColor = Color.Transparent;
+            buttonDarkMode.BorderRadius = 5;
+            buttonDarkMode.Dock = DockStyle.Top;
+            buttonDarkMode.FlatAppearance.BorderSize = 0;
+            buttonDarkMode.FlatStyle = FlatStyle.Flat;
+            buttonDarkMode.ForeColor = SystemColors.ControlText;
+            buttonDarkMode.Location = new Point(267, 67);
+            buttonDarkMode.Margin = new Padding(4);
+            buttonDarkMode.Name = "buttonDarkMode";
+            buttonDarkMode.Secondary = false;
+            buttonDarkMode.Size = new Size(252, 51);
+            buttonDarkMode.TabIndex = 42;
+            buttonDarkMode.Text = "Dark Mode";
+            buttonDarkMode.UseVisualStyleBackColor = false;
             // 
             // comboVisual
             // 
@@ -2288,6 +2331,8 @@ namespace GHelper
         private RButton buttonEnergySaver;
         private RButton buttonAmdOled;
         private RButton buttonArmoury;
+        private RButton buttonLightMode;
+        private RButton buttonDarkMode;
         private RButton buttonHDRControl;
         private Panel panelRearLight;
         private TableLayoutPanel tableLayoutRearLight;

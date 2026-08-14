@@ -55,6 +55,9 @@ namespace GHelper
             labelFNF4 = new Label();
             comboFNF4 = new RComboBox();
             textFNF4 = new RTextBox();
+            labelFNF5 = new Label();
+            comboFNF5 = new RComboBox();
+            textFNF5 = new RTextBox();
             comboM4 = new RComboBox();
             textM4 = new RTextBox();
             labelM4 = new Label();
@@ -317,15 +320,18 @@ namespace GHelper
             tableBindings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
             tableBindings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40F));
             tableBindings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40F));
-            tableBindings.Controls.Add(labelFNE, 0, 8);
-            tableBindings.Controls.Add(comboFNE, 0, 8);
-            tableBindings.Controls.Add(textFNE, 0, 8);
-            tableBindings.Controls.Add(labelFNV, 0, 7);
-            tableBindings.Controls.Add(comboFNV, 1, 7);
-            tableBindings.Controls.Add(textFNV, 2, 7);
-            tableBindings.Controls.Add(labelFNC, 0, 6);
-            tableBindings.Controls.Add(comboFNC, 1, 6);
-            tableBindings.Controls.Add(textFNC, 2, 6);
+            tableBindings.Controls.Add(labelFNE, 0, 9);
+            tableBindings.Controls.Add(comboFNE, 1, 9);
+            tableBindings.Controls.Add(textFNE, 2, 9);
+            tableBindings.Controls.Add(labelFNV, 0, 8);
+            tableBindings.Controls.Add(comboFNV, 1, 8);
+            tableBindings.Controls.Add(textFNV, 2, 8);
+            tableBindings.Controls.Add(labelFNC, 0, 7);
+            tableBindings.Controls.Add(comboFNC, 1, 7);
+            tableBindings.Controls.Add(textFNC, 2, 7);
+            tableBindings.Controls.Add(labelFNF5, 0, 6);
+            tableBindings.Controls.Add(comboFNF5, 1, 6);
+            tableBindings.Controls.Add(textFNF5, 2, 6);
             tableBindings.Controls.Add(labelFNF4, 0, 5);
             tableBindings.Controls.Add(comboFNF4, 1, 5);
             tableBindings.Controls.Add(textFNF4, 2, 5);
@@ -349,7 +355,8 @@ namespace GHelper
             tableBindings.Margin = new Padding(0, 3, 5, 3);
             tableBindings.Name = "tableBindings";
             tableBindings.Padding = new Padding(16, 11, 0, 11);
-            tableBindings.RowCount = 9;
+            tableBindings.RowCount = 10;
+            tableBindings.RowStyles.Add(new RowStyle());
             tableBindings.RowStyles.Add(new RowStyle());
             tableBindings.RowStyles.Add(new RowStyle());
             tableBindings.RowStyles.Add(new RowStyle());
@@ -497,6 +504,40 @@ namespace GHelper
             textFNF4.Size = new Size(360, 39);
             textFNF4.TabIndex = 8;
             textFNF4.TabStop = false;
+            // 
+            // labelFNF5
+            // 
+            labelFNF5.AutoSize = true;
+            labelFNF5.Location = new Point(16, 380);
+            labelFNF5.Margin = new Padding(0);
+            labelFNF5.Name = "labelFNF5";
+            labelFNF5.Padding = new Padding(5, 11, 0, 0);
+            labelFNF5.Size = new Size(95, 43);
+            labelFNF5.TabIndex = 24;
+            labelFNF5.Text = "FN+F5:";
+            // 
+            // comboFNF5
+            // 
+            comboFNF5.BorderColor = Color.White;
+            comboFNF5.ButtonColor = Color.FromArgb(255, 255, 255);
+            comboFNF5.Dock = DockStyle.Top;
+            comboFNF5.FormattingEnabled = true;
+            comboFNF5.Location = new Point(205, 383);
+            comboFNF5.Margin = new Padding(5, 3, 5, 3);
+            comboFNF5.Name = "comboFNF5";
+            comboFNF5.Size = new Size(358, 40);
+            comboFNF5.TabIndex = 25;
+            // 
+            // textFNF5
+            // 
+            textFNF5.Dock = DockStyle.Top;
+            textFNF5.Location = new Point(573, 383);
+            textFNF5.Margin = new Padding(5, 3, 5, 3);
+            textFNF5.Name = "textFNF5";
+            textFNF5.PlaceholderText = "action";
+            textFNF5.Size = new Size(360, 39);
+            textFNF5.TabIndex = 26;
+            textFNF5.TabStop = false;
             // 
             // comboM4
             // 
@@ -1789,6 +1830,9 @@ namespace GHelper
         private Label labelFNF4;
         private RComboBox comboFNF4;
         private RTextBox textFNF4;
+        private Label labelFNF5;
+        private RComboBox comboFNF5;
+        private RTextBox textFNF5;
         private RComboBox comboFNC;
         private RComboBox comboFNV;
         private RTextBox textFNC;
