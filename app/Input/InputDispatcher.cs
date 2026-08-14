@@ -706,6 +706,14 @@ namespace GHelper.Input
                 case "touchscreen":
                     ToggleTouchScreen();
                     break;
+                case "darkmode":
+                    Task.Run(() =>
+                    {
+                        bool dark = ThemeControl.ToggleDark();
+                        Program.toast.RunToast(Properties.Strings.DarkMode + " " + (dark ? Properties.Strings.On : Properties.Strings.Off));
+                        Program.settingsForm.BeginInvoke(Program.settingsForm.VisualiseTheme);
+                    });
+                    break;
                 default:
                     break;
             }
@@ -939,7 +947,7 @@ namespace GHelper.Input
                     case 93:    // GoPro key
                     case 174:   // FN+F5
                     case 153:   // FN+F5 OLD MODELS
-                        modeControl.CyclePerformanceMode(Control.ModifierKeys == Keys.Shift);
+                        KeyProcess("fnf5");
                         return;
                     case 178:   // FN+LEFT ARROW / FN + F4
                         Program.settingsForm.BeginInvoke(Program.settingsForm.CycleAuraMode, -1);

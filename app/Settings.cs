@@ -164,6 +164,13 @@ namespace GHelper
             buttonArmoury.ForeColor = SystemColors.ControlLightLight;
             buttonArmoury.Click += ButtonArmoury_Click;
 
+            buttonLightMode.Text = Properties.Strings.LightMode;
+            buttonDarkMode.Text = Properties.Strings.DarkMode;
+            buttonLightMode.BorderColor = colorStandard;
+            buttonDarkMode.BorderColor = colorStandard;
+            buttonLightMode.Click += ButtonLightMode_Click;
+            buttonDarkMode.Click += ButtonDarkMode_Click;
+
             buttonWindows.Click += ButtonWindows_Click;
             buttonSilent.Click += ButtonSilent_Click;
             buttonBalanced.Click += ButtonBalanced_Click;
@@ -307,6 +314,29 @@ namespace GHelper
             if (dialogResult == DialogResult.Yes) AsusService.RunArmouryUninstaller();
         }
 
+        private void ButtonLightMode_Click(object? sender, EventArgs e)
+        {
+            // Theme switch blocks on a broadcast to every top-level window, keep it off the UI thread
+            Task.Run(() => ThemeControl.SetDark(false));
+            buttonLightMode.Activated = true;
+            buttonDarkMode.Activated = false;
+        }
+
+        private void ButtonDarkMode_Click(object? sender, EventArgs e)
+        {
+            Task.Run(() => ThemeControl.SetDark(true));
+            buttonDarkMode.Activated = true;
+            buttonLightMode.Activated = false;
+        }
+
+        public void VisualiseTheme()
+        {
+            if (InvokeRequired) { Invoke(VisualiseTheme); return; }
+            bool dark = ThemeControl.IsDark();
+            buttonDarkMode.Activated = dark;
+            buttonLightMode.Activated = !dark;
+        }
+
 
         private void ButtonAmdOled_Click(object? sender, EventArgs e)
         {
@@ -354,7 +384,7 @@ namespace GHelper
             {
                 buttonFreeSync.Activated = currentFreeSync > 0;
                 buttonFreeSync.Text = currentFreeSync > 0 ? "FreeSync On" : "FreeSync Off";
-                buttonFreeSync.BorderColor = currentFreeSync > 0 ? colorTurbo : colorStandard;
+                buttonFreeSync.BorderColor = colorStandard;
             }
         }
 
@@ -722,6 +752,7 @@ namespace GHelper
             sensorTimer.Enabled = this.Visible || sensorsAlways;
             if (this.Visible)
             {
+                VisualiseTheme();
                 Task.Run((Action)RefreshPeripheralsBattery);
                 updateControl.CheckForUpdates();
             }
@@ -1532,7 +1563,7 @@ namespace GHelper
                 ButtonEnabled(buttonFreeSync, screenEnabled && !hdr);
                 buttonFreeSync.Activated = currentFreeSync > 0;
                 buttonFreeSync.Text = currentFreeSync > 0 ? "FreeSync On" : "FreeSync Off";
-                buttonFreeSync.BorderColor = currentFreeSync > 0 ? colorTurbo : colorStandard;
+                buttonFreeSync.BorderColor = colorStandard;
             }
             else
             {

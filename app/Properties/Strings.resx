@@ -354,6 +354,9 @@
   <data name="Custom" xml:space="preserve">
     <value>Custom</value>
   </data>
+  <data name="DarkMode" xml:space="preserve">
+    <value>Dark Mode</value>
+  </data>
   <data name="Deceleration" xml:space="preserve">
     <value>Deceleration</value>
   </data>
@@ -538,6 +541,9 @@ Do you still want to continue?</value>
   </data>
   <data name="Lighting" xml:space="preserve">
     <value>Lighting</value>
+  </data>
+  <data name="LightMode" xml:space="preserve">
+    <value>Light Mode</value>
   </data>
   <data name="LockScreen" xml:space="preserve">
     <value>Lock Screen</value>
@@ -799,6 +805,9 @@ Do you still want to continue?</value>
   </data>
   <data name="ToggleClamshellMode" xml:space="preserve">
     <value>Auto Toggle Clamshell Mode</value>
+  </data>
+  <data name="ToggleDarkMode" xml:space="preserve">
+    <value>Toggle Dark Mode</value>
   </data>
   <data name="ToggleFnLock" xml:space="preserve">
     <value>Toggle Fn-Lock</value>
