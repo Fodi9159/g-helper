@@ -1823,7 +1823,7 @@ namespace GHelper
 
             switch (mode)
             {
-                case AsusACPI.PerformanceWindows:
+                case AsusACPI.PerformanceFullSpeed:
                     buttonWindows.Activated = true;
                     break;
                 case AsusACPI.PerformanceSilent:
@@ -2087,7 +2087,7 @@ namespace GHelper
 
         private void ButtonWindows_Click(object? sender, EventArgs e)
         {
-            Program.modeControl.SetPerformanceMode(AsusACPI.PerformanceWindows);
+            Program.modeControl.SetPerformanceMode(AsusACPI.PerformanceFullSpeed);
         }
 
         // Classic Windows flag: 4 colored panes meeting at the center
@@ -2117,6 +2117,12 @@ namespace GHelper
                 }
             }
             return bmp;
+        }
+
+        private void PictureGPU_Click(object? sender, EventArgs e)
+        {
+            if (GPUModeControl.gpuError is not null)
+                Process.Start(new ProcessStartInfo("devmgmt.msc") { UseShellExecute = true });
         }
 
         private void ButtonSilent_Click(object? sender, EventArgs e)
