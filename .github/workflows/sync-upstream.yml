@@ -10,7 +10,7 @@ permissions:
   issues: write
 
 jobs:
-  sync:
+  check:
     runs-on: ubuntu-latest
     outputs:
       new_release: ${{ steps.check.outputs.new_release }}
@@ -40,8 +40,23 @@ jobs:
             echo "upstream_tag=$UPSTREAM_TAG" >> "$GITHUB_OUTPUT"
           fi
 
+  sync-and-release:
+    needs: check
+    if: needs.check.outputs.new_release == 'true'
+    runs-on: windows-2022
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
       - name: Sync with upstream (rebase, fork custom code wins)
-        if: steps.check.outputs.new_release == 'true'
+        shell: bash
         run: |
           set -e
           git remote add upstream https://github.com/seerge/g-helper.git 2>/dev/null || git remote set-url upstream https://github.com/seerge/g-helper.git
@@ -69,6 +84,51 @@ jobs:
             done
           fi
 
+          # Reconcile the fork's known collisions with upstream. The fork's custom
+          # commits were written against an old upstream, so -X theirs replays them
+          # verbatim and clobbers upstream additions in the same spots. This is the
+          # list of known collisions; anything else is caught by the build gate below.
+          #
+          # 1. AsusACPI.cs — the fork keeps this file identical to upstream. Its only
+          #    historical deviation (the PerformanceWindows constant) now matches
+          #    upstream's PerformanceFullSpeed name, but the old "Add Windows mode"
+          #    commit still carries the old name and would clobber upstream's enum.
+          #    Force upstream's version.
+          git checkout upstream/main -- app/AsusACPI.cs
+
+          # 2. Settings.cs — the same old commit re-adds the PerformanceWindows
+          #    constant name; normalize it to upstream's PerformanceFullSpeed (same
+          #    ACPI value 3, the UI label "Windows Mode" is unaffected).
+          sed -i 's/AsusACPI\.PerformanceWindows/AsusACPI.PerformanceFullSpeed/g' app/Settings.cs
+
+          # 3. Settings.cs — the fork's "Windows mode" button code overlaps the spot
+          #    where upstream later added the PictureGPU_Click handler, so the replay
+          #    can drop it. Re-add the handler if it went missing.
+          python - <<'PY'
+          path = 'app/Settings.cs'
+          with open(path, encoding='utf-8', newline='') as f:
+              text = f.read()
+          if 'private void PictureGPU_Click' not in text:
+              handler = (
+                  '        private void PictureGPU_Click(object? sender, EventArgs e)\n'
+                  '        {\n'
+                  '            if (GPUModeControl.gpuError is not null)\n'
+                  '                Process.Start(new ProcessStartInfo("devmgmt.msc") { UseShellExecute = true });\n'
+                  '        }\n\n'
+              )
+              marker = '        private void ButtonSilent_Click(object? sender, EventArgs e)'
+              if marker in text:
+                  text = text.replace(marker, handler + marker, 1)
+              else:
+                  idx = text.rstrip().rfind('}')
+                  text = text[:idx] + handler + text[idx:]
+              with open(path, 'w', encoding='utf-8', newline='') as f:
+                  f.write(text)
+              print('Re-added PictureGPU_Click handler to Settings.cs')
+          PY
+          git add app/AsusACPI.cs app/Settings.cs
+          GIT_EDITOR=true git commit -m "Reconcile fork custom code with upstream (AsusACPI enum, Windows mode name, GPU handler)" || true
+
           # GITHUB_TOKEN cannot push ANY change to .github/workflows/*. Restore the
           # fork's exact workflow files so the push contains zero workflow diffs.
           git checkout "$PRE_SYNC_SHA" -- .github/workflows
@@ -76,7 +136,7 @@ jobs:
           GIT_EDITOR=true git commit -m "Restore fork workflow files after upstream sync" || true
 
           # Verify the custom code survived the rebase
-          if ! grep -q "WindowsMode" app/Properties/Strings.resx || ! grep -q "Fodi9159" app/AutoUpdate/AutoUpdateControl.cs; then
+          if ! grep -q "WindowsMode" app/Properties/Strings.resx || ! grep -q "Fodi9159" app/AutoUpdate/AutoUpdateControl.cs || ! grep -q "PerformanceFullSpeed" app/AsusACPI.cs; then
             echo "custom_missing=true" >> "$GITHUB_ENV"
           fi
 
@@ -90,46 +150,55 @@ jobs:
           if [ -z "$EXISTING" ]; then
             gh issue create --repo "${{ github.repository }}" \
               --title "Custom code missing after upstream sync" \
-              --body "The rebase onto upstream/main dropped custom fork code (Windows mode or the fork auto-update URL). The sync was **not** pushed. Check the custom commits locally with \`git rebase -X theirs upstream/main\` and fix what dropped, or update the marker checks in \`.github/workflows/sync-upstream.yml\`."
+              --body "The rebase onto upstream/main dropped custom fork code or an upstream symbol the fork relies on (Windows mode, fork auto-update URL, or the AsusACPI enum). The sync was **not** pushed. Fix locally with \`git fetch upstream && git rebase -X theirs upstream/main\` and push the fix, or update the marker checks in \`.github/workflows/sync-upstream.yml\`."
           fi
           echo "Custom code missing — aborting sync"
           exit 1
 
-      - name: Push synced main
+      - name: Bump version to upstream release
         if: env.custom_missing != 'true'
+        shell: bash
+        run: |
+          TAG="${{ needs.check.outputs.upstream_tag }}"
+          VERSION="${TAG#v}"
+          sed -i "s|<AssemblyVersion>.*</AssemblyVersion>|<AssemblyVersion>${VERSION}</AssemblyVersion>|" app/GHelper.csproj
+          sed -i "s|<AssemblyFileVersion>.*</AssemblyFileVersion>|<AssemblyFileVersion>${VERSION}</AssemblyFileVersion>|" app/GHelper.csproj
+          git add app/GHelper.csproj
+          GIT_EDITOR=true git commit -m "Bump version to ${VERSION} for upstream sync release" || true
+          echo "Version set to $VERSION"
+
+      - name: Build synced code (main is only pushed if this passes)
+        if: env.custom_missing != 'true'
+        shell: bash
+        run: |
+          if ! dotnet publish app/GHelper.sln --configuration Release --runtime win-x64 -p:PublishSingleFile=true --no-self-contained; then
+            echo "build_failed=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Alert if build failed (main NOT pushed)
+        if: env.build_failed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          EXISTING=$(gh issue list --repo "${{ github.repository }}" --state open \
+            --search "Sync build failed after upstream rebase" --json number -q '.[0].number' 2>/dev/null)
+          if [ -z "$EXISTING" ]; then
+            gh issue create --repo "${{ github.repository }}" \
+              --title "Sync build failed after upstream rebase" \
+              --body "The fork rebased onto upstream/main but the code does not compile, so main was **not** pushed. Reproduce locally with \`git fetch upstream && git rebase -X theirs upstream/main\`, fix the compile errors, push the fix, then re-run this workflow via workflow_dispatch."
+          fi
+          echo "Build failed — aborting without pushing main"
+          exit 1
+
+      - name: Push synced main
+        if: env.build_failed != 'true'
+        shell: bash
         run: |
           git push --force-with-lease origin main
           echo "Synced main pushed: $(git rev-parse --short HEAD)"
 
-  build-and-release:
-    needs: sync
-    if: needs.sync.outputs.new_release == 'true'
-    runs-on: windows-2022
-    steps:
-      - name: Checkout synced main
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: main
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
-
-      - name: Bump version to upstream release
-        shell: bash
-        run: |
-          TAG="${{ needs.sync.outputs.upstream_tag }}"
-          VERSION="${TAG#v}"
-          sed -i "s|<AssemblyVersion>.*</AssemblyVersion>|<AssemblyVersion>${VERSION}</AssemblyVersion>|" app/GHelper.csproj
-          sed -i "s|<AssemblyFileVersion>.*</AssemblyFileVersion>|<AssemblyFileVersion>${VERSION}</AssemblyFileVersion>|" app/GHelper.csproj
-          echo "Version set to $VERSION"
-
-      - name: Publish single-file exe
-        run: dotnet publish app/GHelper.sln --configuration Release --runtime win-x64 -p:PublishSingleFile=true --no-self-contained
-
       - name: Package ZIP
+        if: env.build_failed != 'true'
         shell: powershell
         run: |
           $exe = Get-ChildItem "app\bin\x64\Release" -Recurse -Filter "GHelper.exe" | Where-Object FullName -match "publish" | Select-Object -First 1
@@ -137,11 +206,12 @@ jobs:
           Write-Host "Packed: $($exe.FullName)"
 
       - name: Create release on fork
+        if: env.build_failed != 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ needs.sync.outputs.upstream_tag }}"
+          TAG="${{ needs.check.outputs.upstream_tag }}"
           gh release create "$TAG" GHelper.zip \
             --repo "${{ github.repository }}" \
             --title "G-Helper $TAG" \
