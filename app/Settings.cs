@@ -828,6 +828,8 @@ namespace GHelper
                             InputDispatcher.lidClose = AniMatrixControl.lidClose = false;
                             Aura.ApplyBrightness(InputDispatcher.GetBacklight(), "Lid");
                             matrixControl.SetLidMode();
+                            ScreenControl.AutoScreen();
+                            ReapplyAutoScreen();
                             break;
                     }
 
@@ -853,6 +855,7 @@ namespace GHelper
                             if (!Program.SetAutoModes(wakeup: true)) BatteryControl.AutoBattery();
                             ScreenControl.AutoScreen();
                             Program.hardwareOverlay?.ResumeForDisplayOn();
+                            ReapplyAutoScreen();
                             break;
                         case 2:
                             Logger.WriteLine("Monitor Dimmed");
@@ -875,6 +878,31 @@ namespace GHelper
             catch (Exception ex)
             {
                 Debug.WriteLine(ex.ToString());
+            }
+        }
+
+        // The internal panel path may not be active yet at the moment the lid opens or
+        // the monitor turns on (e.g. lid closed on battery, then power plugged in), so
+        // re-apply the auto refresh rate until the display is back and the rate matches
+        // the current power source.
+        private static async void ReapplyAutoScreen()
+        {
+            if (!AppConfig.Is("screen_auto")) return;
+
+            for (int attempt = 0; attempt < 20; attempt++)
+            {
+                await Task.Delay(500);
+                ScreenControl.AutoScreen();
+
+                string? laptopScreen = ScreenNative.FindLaptopScreen();
+                int refreshRate = ScreenNative.GetRefreshRate(laptopScreen);
+                if (refreshRate < 0) continue;
+
+                int target = SystemInformation.PowerStatus.PowerLineStatus == PowerLineStatus.Online
+                    ? ScreenControl.GetMaxRate(laptopScreen)
+                    : ScreenControl.MIN_RATE;
+
+                if (refreshRate == target) return;
             }
         }
 
