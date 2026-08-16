@@ -723,12 +723,12 @@ namespace GHelper.Input
                     ToggleTouchScreen();
                     break;
                 case "darkmode":
-                    Task.Run(() =>
-                    {
-                        bool dark = ThemeControl.ToggleDark();
-                        Program.toast.RunToast(Properties.Strings.DarkMode + " " + (dark ? Properties.Strings.On : Properties.Strings.Off));
-                        Program.settingsForm.BeginInvoke(Program.settingsForm.VisualiseTheme);
-                    });
+                    // Toast first — the switch itself blocks on a broadcast to every top-level
+                    // window, so waiting for it would make the OSD appear seconds late
+                    bool dark = !ThemeControl.IsDark();
+                    Program.toast.RunToast(Properties.Strings.DarkMode + " " + (dark ? Properties.Strings.On : Properties.Strings.Off));
+                    Task.Run(() => ThemeControl.SetDark(dark));
+                    Program.settingsForm.BeginInvoke(Program.settingsForm.VisualiseTheme);
                     break;
                 default:
                     break;
