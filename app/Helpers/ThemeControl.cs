@@ -38,8 +38,10 @@ namespace GHelper.Helpers
             }
         }
 
-        // Serializes write -> SPI -> broadcast so two rapid toggles can't interleave
-        // and leave the registry and the actual system theme out of sync
+        // Serializes write -> SPI so two rapid toggles can't interleave and leave the
+        // registry and the actual system theme out of sync. The broadcast is intentionally
+        // outside the lock — it's notification-only, so a rapid second toggle must not
+        // queue behind the first toggle's system-wide broadcast.
         private static readonly object themeLock = new();
 
         // Apps re-read the theme only when they receive the ImmersiveColorSet broadcast.
@@ -66,12 +68,23 @@ namespace GHelper.Helpers
                     Logger.WriteLine("Can't set theme registry: " + ex.Message);
                 }
 
+                // Re-theme GHelper itself right away — the registry is already written, so the
+                // visible window flips now instead of waiting for the broadcast round-trip. When
+                // the broadcast arrives later, InitTheme sees no change and skips the heavy work.
+                Program.settingsForm?.BeginInvoke(() =>
+                {
+                    Program.settingsForm.InitTheme();
+                    Program.settingsForm.VisualiseIcon(true);
+                });
+
                 // Toggle Windows mode the same way the Settings app does
                 SystemParametersInfo(SPI_SETSYSTEMDARKMODE, (uint)value, 0, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
-
-                // Broadcast so apps re-read the theme
-                BroadcastThemeChange();
             }
+
+            // Broadcast so apps re-read the theme; outside the lock so a rapid second
+            // toggle doesn't wait behind the first one's broadcast. The 1s follow-up
+            // re-broadcast covers apps that were too busy to apply it in time.
+            BroadcastThemeChange();
 
             followUpTimer.Change(1000, Timeout.Infinite);
         }
@@ -79,18 +92,11 @@ namespace GHelper.Helpers
         private static void BroadcastThemeChange()
         {
             // WM_SETTINGCHANGE (0x001A) broadcast to all windows, SMTO_ABORTIFHUNG (0x0002)
+            // Short timeout: the call waits on every top-level window in the system, so one slow
+            // app must not stall the switch. Windows that were too busy to apply it in time get
+            // a second chance from the 1s follow-up re-broadcast.
             UIntPtr result;
-            SendMessageTimeout((IntPtr)0xFFFF, WM_SETTINGCHANGE, UIntPtr.Zero, "ImmersiveColorSet", SMTO_ABORTIFHUNG, 5000, out result);
-        }
-
-        public static bool ToggleDark()
-        {
-            lock (themeLock)
-            {
-                bool dark = !IsDark();
-                SetDark(dark);
-                return dark;
-            }
+            SendMessageTimeout((IntPtr)0xFFFF, WM_SETTINGCHANGE, UIntPtr.Zero, "ImmersiveColorSet", SMTO_ABORTIFHUNG, 500, out result);
         }
 
     }
