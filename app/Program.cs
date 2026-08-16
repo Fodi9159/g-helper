@@ -4,6 +4,7 @@ using GHelper.Display;
 using GHelper.Gpu;
 using GHelper.Helpers;
 using GHelper.Input;
+using GHelper.UI;
 using GHelper.Mode;
 using GHelper.Overlay;
 using GHelper.Peripherals;
@@ -289,23 +290,30 @@ namespace GHelper
                         lastTheme = DateTimeOffset.Now.ToUnixTimeMilliseconds();
                     }
 
-                    if (settingsForm.fansForm is not null && settingsForm.fansForm.Text != "")
-                        settingsForm.fansForm.InitTheme();
-
-                    if (settingsForm.extraForm is not null && settingsForm.extraForm.Text != "")
-                        settingsForm.extraForm.InitTheme();
-
-                    if (settingsForm.updatesForm is not null && settingsForm.updatesForm.Text != "")
-                        settingsForm.updatesForm.InitTheme();
-
-                    if (settingsForm.matrixForm is not null && settingsForm.matrixForm.Text != "")
-                        settingsForm.matrixForm.InitTheme();
-
-                    if (settingsForm.handheldForm is not null && settingsForm.handheldForm.Text != "")
-                        settingsForm.handheldForm.InitTheme();
+                    // The visible window is re-themed above; open sub-forms re-theme on the next
+                    // message-loop turn so the main window repaints before they block the UI thread
+                    settingsForm.BeginInvoke(() =>
+                    {
+                        ThemeSubForm(settingsForm.fansForm);
+                        ThemeSubForm(settingsForm.extraForm);
+                        ThemeSubForm(settingsForm.updatesForm);
+                        ThemeSubForm(settingsForm.matrixForm);
+                        ThemeSubForm(settingsForm.handheldForm);
+                    });
 
                     break;
             }
+        }
+
+        // Re-theme one open sub-form; a form closed since the theme change must not throw
+        private static void ThemeSubForm(RForm? form)
+        {
+            try
+            {
+                if (form is not null && !form.IsDisposed && form.Text != "")
+                    form.InitTheme();
+            }
+            catch (ObjectDisposedException) { }
         }
 
 
