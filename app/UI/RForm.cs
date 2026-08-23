@@ -1,5 +1,4 @@
-﻿using Microsoft.Win32;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
 namespace GHelper.UI
 {
@@ -100,11 +99,7 @@ namespace GHelper.UI
                 return CheckSystemDarkModeStatus();
             }
 
-            using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
-            var registryValueObject = key?.GetValue("AppsUseLightTheme");
-
-            if (registryValueObject == null) return false;
-            return (int)registryValueObject <= 0;
+            return GHelper.Helpers.ThemeControl.IsDark();
         }
 
         public bool InitTheme(bool setDPI = false)
