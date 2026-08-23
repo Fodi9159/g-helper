@@ -290,6 +290,7 @@ namespace GHelper
                         ThemeSubForm(settingsForm.updatesForm);
                         ThemeSubForm(settingsForm.matrixForm);
                         ThemeSubForm(settingsForm.handheldForm);
+                        ThemeSubForm(settingsForm.slashForm);
                     });
 
                     break;

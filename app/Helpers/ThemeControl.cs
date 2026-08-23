@@ -71,11 +71,19 @@ namespace GHelper.Helpers
                 // Re-theme GHelper itself right away — the registry is already written, so the
                 // visible window flips now instead of waiting for the broadcast round-trip. When
                 // the broadcast arrives later, InitTheme sees no change and skips the heavy work.
-                Program.settingsForm?.BeginInvoke(() =>
+                try
                 {
-                    Program.settingsForm.InitTheme();
-                    Program.settingsForm.VisualiseIcon(true);
-                });
+                    // The form can be disposed mid-shutdown between the check and the call
+                    Program.settingsForm?.BeginInvoke(() =>
+                    {
+                        Program.settingsForm.InitTheme();
+                        Program.settingsForm.VisualiseIcon(true);
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Logger.WriteLine("Can't re-theme main form on switch: " + ex.Message);
+                }
 
                 // Toggle Windows mode the same way the Settings app does
                 SystemParametersInfo(SPI_SETSYSTEMDARKMODE, (uint)value, 0, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
