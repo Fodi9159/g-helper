@@ -2066,12 +2066,12 @@ namespace GHelper
 
 
         private (int, bool, bool)? lastIcon;
-        private bool isDark = CheckSystemDarkModeStatus();
+        private bool isDark = ThemeControl.IsDark();
 
         public void VisualiseIcon(bool themeChange = false)
         {
             if (Program.trayIcon is null) return;
-            if (themeChange) isDark = CheckSystemDarkModeStatus();
+            if (themeChange) isDark = ThemeControl.IsDark();
 
             int GPUMode = AppConfig.Get("gpu_mode");
             bool bw = AppConfig.IsBWIcon();
