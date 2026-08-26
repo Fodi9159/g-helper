@@ -6,6 +6,7 @@ using GHelper.Mode;
 using GHelper.UI;
 using GHelper.USB;
 using System.Diagnostics;
+using System.Linq;
 
 namespace GHelper
 {
@@ -50,6 +51,7 @@ namespace GHelper
               {"ghelper", Properties.Strings.OpenGHelper},
               {"overlay", Properties.Strings.Overlay},
               {"darkmode", Properties.Strings.ToggleDarkMode},
+              {"bluetooth", "Bluetooth"},
               {"custom", Properties.Strings.Custom}
             };
 
@@ -128,7 +130,7 @@ namespace GHelper
                 if (combo.SelectedValue is not null)
                     AppConfig.Set(name, combo.SelectedValue.ToString());
 
-                if (name == "m1" || name == "m2" || name == "m3" || name == "m4" || name == "m5")
+                if (name == "m1" || name == "m2" || name == "m3" || name == "m4" || name == "m5" || name.StartsWith("row_"))
                 {
                     MKeyControl.ApplyAll();
                     Program.inputDispatcher.RegisterKeys();
@@ -323,6 +325,25 @@ namespace GHelper
                 SetKeyCombo(comboFNC, textFNC, "fnc");
                 SetKeyCombo(comboFNV, textFNV, "fnv");
                 SetKeyCombo(comboFNE, textFNE, "fne");
+
+                // Fork: F-row binding rows (writes row_fN config keys).
+                // FN+F2/F3/F4/F5 are skipped — the ORIGINAL stock rows cover them.
+                // FN+F12 is skipped — bare F12 is reserved by Windows (AeDebug) and
+                // Fn+F12 is hardwired to airplane mode in the keyboard EC.
+                for (int i = 0; i < 12; i++)
+                {
+                    if (i is 1 or 2 or 3 or 4 or 11)
+                    {
+                        labelFRow[i].Visible = false;
+                        comboFRow[i].Visible = false;
+                        textFRow[i].Visible = false;
+                        tableBindings.Controls.Remove(labelFRow[i]);
+                        tableBindings.Controls.Remove(comboFRow[i]);
+                        tableBindings.Controls.Remove(textFRow[i]);
+                        continue;
+                    }
+                    SetKeyCombo(comboFRow[i], textFRow[i], "row_f" + (i + 1));
+                }
             }
 
             if (AppConfig.IsStrix())
@@ -342,6 +363,48 @@ namespace GHelper
             comboKeyboardSpeed.ValueMember = "Key";
             comboKeyboardSpeed.SelectedValue = Aura.Speed;
             comboKeyboardSpeed.SelectedValueChanged += ComboKeyboardSpeed_SelectedValueChanged;
+
+            // Fork: natural-sort ALL visible bindings rows — FN+F1..F12 numerically, rest after
+            var bindRows = new List<(string key, Control l, Control c, Control t)>();
+            void Collect(Control l, Control c, Control t)
+            {
+                // NOTE: .Visible is false for EVERYTHING until the form is Shown —
+                // only skip controls actually removed from the grid (fork F2-F5)
+                if (l is null || l.Parent is null) return;
+                // stock hides rows by Visible=false at ctor time; also skip our removed F2-F5
+                string name = l.Text.Replace(":", "").Trim();
+                string sortKey = name.StartsWith("FN+F") && int.TryParse(name.Substring(4), out int n)
+                    ? "0:" + n.ToString("D2")
+                    : name switch
+                    {
+                        "FN+C" => "1:",
+                        "FN+V" => "2:",
+                        "FN+NmEnt" => "3:",
+                        _ => "4:" + name
+                    };
+                bindRows.Add((sortKey, l, c, t));
+            }
+            for (int i = 0; i < 12; i++) Collect(labelFRow[i], comboFRow[i], textFRow[i]);
+            Collect(labelM1, comboM1, textM1);
+            Collect(labelM2, comboM2, textM2);
+            Collect(labelM3, comboM3, textM3);
+            Collect(labelM4, comboM4, textM4);
+            Collect(labelM5, comboM5, textM5);
+            Collect(labelFNF4, comboFNF4, textFNF4);
+            Collect(labelFNF5, comboFNF5, textFNF5);
+            Collect(labelFNC, comboFNC, textFNC);
+            Collect(labelFNV, comboFNV, textFNV);
+            Collect(labelFNE, comboFNE, textFNE);
+
+            int frowNext = 0;
+            foreach (var row in bindRows.OrderBy(r => r.key, StringComparer.Ordinal))
+            {
+                tableBindings.SetRow(row.l, frowNext);
+                tableBindings.SetRow(row.c, frowNext);
+                tableBindings.SetRow(row.t, frowNext);
+                frowNext++;
+            }
+            tableBindings.RowCount = frowNext;
 
             // Keyboard
             checkAwake.Checked = AppConfig.IsNotFalse("keyboard_awake");
@@ -850,6 +913,14 @@ namespace GHelper
             comboM5.SelectedValue = "";
 
             textM1.Text = textM2.Text = textM3.Text = textM4.Text = textM5.Text = "";
+
+            // Fork: reset the F-row bindings too
+            for (int i = 0; i < 12; i++)
+            {
+                comboFRow[i].SelectedValue = "";
+                textFRow[i].Text = "";
+                AppConfig.Remove("row_f" + (i + 1));
+            }
 
             MKeyControl.Reset();
             Program.inputDispatcher.RegisterKeys();

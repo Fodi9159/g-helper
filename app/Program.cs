@@ -359,6 +359,7 @@ namespace GHelper
             }
 
             ScreenControl.InitMiniled();
+            ScreenControl.InitFreeSync();
             VisualControl.InitBrightness();
 
             return true;
