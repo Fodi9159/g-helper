@@ -158,6 +158,12 @@ namespace GHelper
             ((System.ComponentModel.ISupportInitialize)pictureHelp).BeginInit();
             panelBindings.SuspendLayout();
             tableBindings.SuspendLayout();
+            for (int i = 0; i < 12; i++)
+            {
+                labelFRow[i] = new System.Windows.Forms.Label();
+                comboFRow[i] = new GHelper.UI.RComboBox();
+                textFRow[i] = new GHelper.UI.RTextBox();
+            }
             panelBacklightHeader.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBacklight).BeginInit();
             panelBacklight.SuspendLayout();
@@ -366,6 +372,28 @@ namespace GHelper
             tableBindings.RowStyles.Add(new RowStyle());
             tableBindings.RowStyles.Add(new RowStyle());
             tableBindings.RowStyles.Add(new RowStyle());
+            for (int i = 0; i < 12; i++)
+            {
+                int row = 10 + i;
+                var lbl = labelFRow[i]; var cmb = comboFRow[i]; var txt = textFRow[i];
+                lbl.AutoSize = true;
+                lbl.Margin = new Padding(0);
+                lbl.Padding = new Padding(5, 11, 0, 0);
+                lbl.Text = "FN+F" + (i + 1) + ":";
+                cmb.BorderColor = Color.White;
+                cmb.ButtonColor = Color.FromArgb(255, 255, 255);
+                cmb.Dock = DockStyle.Top;
+                cmb.FormattingEnabled = true;
+                cmb.Margin = new Padding(5, 3, 5, 3);
+                txt.PlaceholderText = "action";
+                txt.Dock = DockStyle.Top;
+                txt.Margin = new Padding(5, 3, 5, 3);
+                txt.TabStop = false;
+                tableBindings.Controls.Add(lbl, 0, row);
+                tableBindings.Controls.Add(cmb, 1, row);
+                tableBindings.Controls.Add(txt, 2, row);
+            }
+            tableBindings.RowCount = 22;
             tableBindings.Size = new Size(938, 390);
             tableBindings.TabIndex = 12;
             // 
@@ -1921,6 +1949,9 @@ namespace GHelper
         private Panel panelOptimalBrightness;
         private RComboBox comboOptimalBrightness;
         private PictureBox pictureOptimalBrightness;
+        private System.Windows.Forms.Label[] labelFRow = new System.Windows.Forms.Label[12];
+        private GHelper.UI.RComboBox[] comboFRow = new GHelper.UI.RComboBox[12];
+        private GHelper.UI.RTextBox[] textFRow = new GHelper.UI.RTextBox[12];
         private Label labelOptimalBrightness;
     }
 }

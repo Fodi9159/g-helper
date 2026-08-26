@@ -381,6 +381,7 @@ namespace GHelper
 
             bool enabled = current == 0;
             amdGpuControl.SetFreeSync(enabled);
+            AppConfig.Set("freesync", enabled ? 1 : 0);
 
             if (amdGpuControl.TryGetFreeSyncState(out int currentFreeSync, out _, out _, out _, out _))
             {
@@ -889,20 +890,29 @@ namespace GHelper
         {
             if (!AppConfig.Is("screen_auto")) return;
 
-            for (int attempt = 0; attempt < 20; attempt++)
+            int matches = 0;
+            for (int attempt = 0; attempt < 24; attempt++)
             {
                 await Task.Delay(500);
                 ScreenControl.AutoScreen();
 
                 string? laptopScreen = ScreenNative.FindLaptopScreen();
                 int refreshRate = ScreenNative.GetRefreshRate(laptopScreen);
-                if (refreshRate < 0) continue;
+                if (refreshRate < 0) { matches = 0; continue; }
 
                 int target = SystemInformation.PowerStatus.PowerLineStatus == PowerLineStatus.Online
                     ? ScreenControl.GetMaxRate(laptopScreen)
                     : ScreenControl.MIN_RATE;
 
-                if (refreshRate == target) return;
+                // After wake the driver can report the pre-sleep rate from the cached
+                // mode for a few seconds, so one matching read isn't proof.
+                // ponytail: fixed ~12s watch, 5x500ms stability window - lengthen if a slower panel slips through.
+                if (refreshRate == target)
+                {
+                    matches++;
+                    if (matches >= 5) return;
+                }
+                else matches = 0;
             }
         }
 
