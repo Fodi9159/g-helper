@@ -163,6 +163,17 @@ namespace GHelper.Input
 
             if (keyApp != Keys.None) hook.RegisterHotKey(keyModifier, keyApp);
 
+            // Fork: row_fN bindings fire on bare F-key (Fn-Lock on) OR Fn+F-key (Fn-Lock off)
+            bool fnLockOn = AppConfig.Is("fn_lock") && !IsHardwareFnLock();
+            for (int n = 1; n <= 12; n++)
+            {
+                if (AppConfig.GetString("row_f" + n)?.Length > 1 != true) continue;
+                if (!AppConfig.Is("skip_hotkeys") && fnLockOn)
+                    hook.RegisterHotKey(ModifierKeys.None, Keys.F1 + (n - 1));
+                if (!AppConfig.Is("skip_hotkeys"))
+                    hook.RegisterHotKey(keyModifierAlt, Keys.F1 + (n - 1));
+            }
+
             if (!AppConfig.Is("skip_hotkeys"))
             {
                 if (AppConfig.IsDUO() || (AppConfig.IsVivoZenbook() && AppConfig.IsOLED()))
@@ -208,10 +219,14 @@ namespace GHelper.Input
                 hook.RegisterHotKey(keyModifierAlt, Keys.F9);
             }
 
-            // FN-Lock group
+            // FN-Lock group (keys not claimed by a row_fN binding)
 
-            if (AppConfig.Is("fn_lock") && !IsHardwareFnLock())
-                for (Keys i = Keys.F1; i <= Keys.F11; i++) hook.RegisterHotKey(ModifierKeys.None, i);
+            if (fnLockOn)
+                for (Keys i = Keys.F1; i <= Keys.F11; i++)
+                {
+                    if (AppConfig.GetString("row_" + i.ToString().ToLower())?.Length > 1 != true)
+                        hook.RegisterHotKey(ModifierKeys.None, i);
+                }
 
             // Arrow-lock group
             if (AppConfig.Is("arrow_lock") && AppConfig.IsDUO())
@@ -444,6 +459,13 @@ namespace GHelper.Input
                 }
 
 
+                if (e.Key >= Keys.F1 && e.Key <= Keys.F12)
+                {
+                    // Fork: use the existing config/action pipeline for F-row bindings
+                    string rowKey = "row_" + e.Key.ToString().ToLower();
+                    if (AppConfig.GetString(rowKey)?.Length > 1) { KeyProcess(rowKey); return; }
+                }
+
                 switch (e.Key)
                 {
                     case Keys.F1:
@@ -512,6 +534,14 @@ namespace GHelper.Input
 
             if (e.Modifier == keyModifierAlt)
             {
+                // Fork: row_fN binding via Fn+F-key when Fn-Lock is off
+                if (e.Key >= Keys.F1 && e.Key <= Keys.F12)
+                {
+                    string rowKey = "row_" + e.Key.ToString().ToLower();
+                    if (AppConfig.GetString(rowKey)?.Length > 1 && !(AppConfig.Is("fn_lock") && !IsHardwareFnLock()))
+                        { KeyProcess(rowKey); return; }
+                }
+
                 if (e.Key == keyProfile) modeControl.CyclePerformanceMode(true);
 
                 if (e.Key == keyProfile0) modeControl.SetPerformanceMode(0, true);
@@ -721,6 +751,9 @@ namespace GHelper.Input
                     break;
                 case "touchscreen":
                     ToggleTouchScreen();
+                    break;
+                case "bluetooth":
+                    _ = BluetoothHelper.Toggle();
                     break;
                 case "darkmode":
                     // Toast first — the switch itself blocks on a broadcast to every top-level
