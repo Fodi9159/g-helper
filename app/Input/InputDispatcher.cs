@@ -656,7 +656,7 @@ namespace GHelper.Input
                 if (name == "fnc")
                     action = "fnlock";
                 if (name == "fnv")
-                    action = "visual";
+                    action = "boost_toggle";
                 if (name == "fne")
                     action = "calculator";
             }
@@ -705,6 +705,9 @@ namespace GHelper.Input
                     break;
                 case "performance":
                     modeControl.CyclePerformanceMode(Control.ModifierKeys == Keys.Shift);
+                    break;
+                case "boost_toggle":
+                    PowerNative.SetCPUBoost(PowerNative.GetCPUBoost() == 0 ? 1 : 0);
                     break;
                 case "ghelper":
                     try
