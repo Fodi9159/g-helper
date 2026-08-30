@@ -52,7 +52,9 @@ namespace GHelper.Helpers
         FnLock,
         Battery,
         Charger,
-        Controller
+        Controller,
+        CpuBoost,
+        CpuBoostOff
     }
 
     public class ToastForm : OSDNativeForm
@@ -97,6 +99,8 @@ namespace GHelper.Helpers
                 ToastIcon.Battery        => Properties.Resources.icons8_charged_battery_96,
                 ToastIcon.Charger        => Properties.Resources.icons8_charging_battery_96,
                 ToastIcon.Controller     => Properties.Resources.icons8_controller_96,
+                ToastIcon.CpuBoost       => Properties.Resources.icons8_cpu_boost_96,
+                ToastIcon.CpuBoostOff    => Properties.Resources.icons8_cpu_boost_off_96,
                 _                        => null
             };
 

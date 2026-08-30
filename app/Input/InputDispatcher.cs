@@ -655,8 +655,6 @@ namespace GHelper.Input
                     action = "micmute";
                 if (name == "fnc")
                     action = "fnlock";
-                if (name == "fnv")
-                    action = "boost_toggle";
                 if (name == "fne")
                     action = "calculator";
             }
@@ -708,6 +706,8 @@ namespace GHelper.Input
                     break;
                 case "boost_toggle":
                     PowerNative.SetCPUBoost(PowerNative.GetCPUBoost() == 0 ? 1 : 0);
+                    int boost = PowerNative.GetCPUBoost();
+                    Program.toast.RunToast(Properties.Strings.CPUBoost + " " + (boost > 0 ? Properties.Strings.On : Properties.Strings.Off), boost > 0 ? ToastIcon.CpuBoost : ToastIcon.CpuBoostOff);
                     break;
                 case "ghelper":
                     try

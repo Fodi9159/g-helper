@@ -46,6 +46,7 @@ namespace GHelper
               {"brightness_down", Properties.Strings.BrightnessDown},
               {"brightness_up", Properties.Strings.BrightnessUp},
               {"visual", Properties.Strings.VisualMode},
+              {"boost_toggle", Properties.Strings.CPUBoost},
               {"touchscreen", Properties.Strings.ToggleTouchscreen },
               {"micmute", Properties.Strings.MuteMic},
               {"ghelper", Properties.Strings.OpenGHelper},
@@ -100,10 +101,7 @@ namespace GHelper
                     customActions[""] = Properties.Strings.ToggleFnLock;
                     customActions.Remove("fnlock");
                     break;
-                case "fnv":
-                    customActions[""] = Properties.Strings.VisualMode;
-                    customActions.Remove("visual");
-                    break;
+
                 case "fne":
                     customActions[""] = "Calculator";
                     break;
