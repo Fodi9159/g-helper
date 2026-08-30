@@ -705,7 +705,9 @@ namespace GHelper.Input
                     modeControl.CyclePerformanceMode(Control.ModifierKeys == Keys.Shift);
                     break;
                 case "boost_toggle":
-                    PowerNative.SetCPUBoost(PowerNative.GetCPUBoost() == 0 ? 1 : 0);
+                    int newBoost = PowerNative.GetCPUBoost() == 0 ? 1 : 0;
+                    PowerNative.SetCPUBoost(newBoost);
+                    AppConfig.SetMode("auto_boost", newBoost);
                     int boost = PowerNative.GetCPUBoost();
                     Program.toast.RunToast(Properties.Strings.CPUBoost + " " + (boost > 0 ? Properties.Strings.On : Properties.Strings.Off), boost > 0 ? ToastIcon.CpuBoost : ToastIcon.CpuBoostOff);
                     break;
