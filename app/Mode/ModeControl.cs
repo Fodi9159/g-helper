@@ -66,7 +66,7 @@ namespace GHelper.Mode
             return smu != null && smu.Family is CpuFamily.Raphael;
         }
 
-        private static void SetReapplyEnabled(bool enabled)
+        internal static void SetReapplyEnabled(bool enabled)
         {
             if (reapplyTimer is null)
             {
