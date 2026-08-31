@@ -51,12 +51,6 @@ namespace GHelper.Mode
 
         public ModeControl()
         {
-            int reapplyTime = AppConfig.Get("reapply_time", IsReapplyTempRequired() ? 30 : 0);
-            if (reapplyTime > 0)
-            {
-                reapplyTimer = new System.Timers.Timer(reapplyTime * 1000);
-                reapplyTimer.Elapsed += ReapplyTimer_Elapsed;
-            }
         }
 
         // Cezanne/Rembrandt (Renoir) + Phoenix/HawkPoint (Mobile) silently reset temp limit under load.
@@ -74,14 +68,27 @@ namespace GHelper.Mode
 
         private static void SetReapplyEnabled(bool enabled)
         {
+            if (reapplyTimer is null)
+            {
+                int reapplyTime = AppConfig.Get("reapply_time",
+                    (IsReapplyTempRequired() || AppConfig.IsApplyPower()) ? 5 : 0);
+                if (reapplyTime > 0)
+                {
+                    reapplyTimer = new System.Timers.Timer(reapplyTime * 1000);
+                    reapplyTimer.Elapsed += ReapplyTimer_Elapsed;
+                }
+            }
             if (reapplyTimer != null) reapplyTimer.Enabled = enabled;
         }
 
 
-        private void ReapplyTimer_Elapsed(object? sender, System.Timers.ElapsedEventArgs e)
+        private static void ReapplyTimer_Elapsed(object? sender, System.Timers.ElapsedEventArgs e)
         {
-            SetCPUTemp(AppConfig.GetMode("cpu_temp"));
-            SetRyzenPower();
+            var mc = Program.modeControl;
+            if (mc is null) return;
+            mc.SetCPUTemp(AppConfig.GetMode("cpu_temp"));
+            mc.SetRyzenPower();
+            mc.SetPower();
         }
 
         public void WaitForApply()
@@ -201,6 +208,8 @@ namespace GHelper.Mode
                     PowerNative.SetCPUBoost(AppConfig.GetMode("auto_boost"));
 
             settings.FansInit();
+
+            SetReapplyEnabled(AppConfig.IsApplyPower());
         }
 
         // SyncEcMode disabled: on some ASUS models the EC mode readback is unreliable,
@@ -313,11 +322,11 @@ namespace GHelper.Mode
                 Thread.Sleep(500);
             }
 
-            if (applyPower) SetPower(launchAsAdmin);
+            SetPower(launchAsAdmin);
 
             Thread.Sleep(500);
             SetGPUPower();
-            if (applyPower) SetCrossPower();
+            SetCrossPower();
             AutoRyzen();
 
             if (IsReapplyRyzenRequired())
@@ -584,7 +593,7 @@ namespace GHelper.Mode
                 Logger.WriteLine("UV Error: " + ex.ToString());
             }
 
-            SetReapplyEnabled(AppConfig.IsApplyUV());
+            SetReapplyEnabled(AppConfig.IsApplyUV() || AppConfig.IsApplyPower());
             return lines.ToString().TrimEnd();
         }
 
@@ -616,7 +625,7 @@ namespace GHelper.Mode
             if (_cpuUV != 0) SetUV(0);
             if (_igpuUV != 0) SetUViGPU(0);
             if (_cpuTemp != CpuInfo.DefaultTemp) SetCPUTemp(CpuInfo.DefaultTemp, true);
-            SetReapplyEnabled(false);
+            SetReapplyEnabled(AppConfig.IsApplyPower());
         }
 
         public void AutoRyzen()
