@@ -708,6 +708,8 @@ namespace GHelper.Input
                     int newBoost = PowerNative.GetCPUBoost() == 0 ? 1 : 0;
                     PowerNative.SetCPUBoost(newBoost);
                     AppConfig.SetMode("auto_boost", newBoost);
+                    if (Program.settingsForm?.fansForm is GHelper.Fans ff && ff.Visible)
+                        ff.Invoke(delegate { ff.InitPowerPlan(); });
                     int boost = PowerNative.GetCPUBoost();
                     Program.toast.RunToast(Properties.Strings.CPUBoost + " " + (boost > 0 ? Properties.Strings.On : Properties.Strings.Off), boost > 0 ? ToastIcon.CpuBoost : ToastIcon.CpuBoostOff);
                     break;
