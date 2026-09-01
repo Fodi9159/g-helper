@@ -983,17 +983,13 @@ namespace GHelper
             AppConfig.SetMode("auto_apply_power", chk.Checked ? 1 : 0);
             if (!chk.Checked)
             {
-                int base_ = AsusACPI.DefaultTotal;
-                AppConfig.SetMode("limit_total", base_);
-                AppConfig.SetMode("limit_slow", base_);
-                AppConfig.SetMode("limit_fast", base_);
-                AppConfig.SetMode("limit_cpu", AsusACPI.DefaultCPU);
-                AppConfig.SetMode("limit_crossload", AsusACPI.MaxCrossLoad);
-                AppConfig.SetMode("limit_gpucpu", AsusACPI.MaxGPUtoCPU);
-                AppConfig.SetMode("limit_cputemp", AsusACPI.MaxCPUTemp);
+                var mc = Program.modeControl;
+                if (mc is not null)
+                {
+                    mc.ApplyLiveSmuOnUncheck();
+                }
             }
             modeControl.SetPerformanceMode();
-
         }
 
         private void CheckApplyFans_Click(object? sender, EventArgs e)
