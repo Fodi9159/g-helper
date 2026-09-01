@@ -45,6 +45,13 @@ namespace GHelper.Mode
         public static bool IsPawnInstalled()   => RyzenSmuService.IsPawnInstalled();
 
         static System.Timers.Timer? reapplyTimer;
+        // Rails sag for a few seconds around an AC/DC transition; a limit write
+        // landing in that window can trip a machine check, so reasserts hold
+        // off after a power-source change.
+        static DateTime lastPowerChange = DateTime.MinValue;
+        static int ReapplySettleSeconds => AppConfig.Get("reapply_settle", 15);
+        // Live PM-table values vs configured watts/°C: rounding noise only.
+        const float DriftTolerance = 1f;
         static System.Timers.Timer modeToggleTimer = default!;
         static CancellationTokenSource _modeCts = new();
         static Task _modeTask = Task.CompletedTask;
@@ -86,11 +93,65 @@ namespace GHelper.Mode
         {
             var mc = Program.modeControl;
             if (mc is null) return;
-            mc.SetCPUTemp(AppConfig.GetMode("cpu_temp"));
-            mc.SetRyzenPower();
-            mc.SetPower();
+            // Hold off right after an AC/DC transition, then rewrite a limit
+            // only when the platform actually drifted from config. Ticks
+            // skipped during the settle window catch up on the next tick.
+            if ((DateTime.Now - lastPowerChange).TotalSeconds < ReapplySettleSeconds) return;
+            mc.ReapplyIfDrifted();
         }
 
+        public void NotePowerTransition() => lastPowerChange = DateTime.Now;
+
+        // Conditional reapply: one live PM-table read per tick, then rewrite a
+        // limit only when its live value no longer matches config (e.g. Renoir
+        // resetting the temp limit under load). Values that can't be read fall
+        // back to the previous unconditional write so limits are never left
+        // unapplied.
+        public void ReapplyIfDrifted()
+        {
+            if (!AppConfig.IsApplyPower()) return;
+
+            var smu = GetSmu();
+            PowerLimits? live = null;
+            if (smu != null)
+            {
+                try { live = smu.GetPowerLimits(log: false); }
+                catch (Exception ex) { Logger.WriteLine("Conditional reapply: live limits read failed: " + ex.Message); }
+            }
+
+            int cpuTemp = AppConfig.GetMode("cpu_temp");
+            if (cpuTemp >= CpuInfo.MinTemp && cpuTemp <= CpuInfo.DefaultTemp && !LiveTempMatches(live, cpuTemp))
+                SetCPUTemp(cpuTemp);
+
+            int limit_total = AppConfig.GetMode("limit_total");
+            int limit_slow = AppConfig.GetMode("limit_slow", limit_total);
+            if (limit_slow < 0) limit_slow = limit_total;
+            int limit_fast = AppConfig.GetMode("limit_fast", limit_slow);
+
+            // The SMU PM-table read is the authority: on models without the
+            // ASUS WMI readback IDs (e.g. TUF A15), a WMI-based check would
+            // report "unverifiable" every tick and force a write, defeating
+            // the drift check. Only fall back to the unconditional write when
+            // the live read itself is unavailable.
+            bool limitsMatch = live is not null
+                && limit_total >= AsusACPI.MinTotal && limit_total <= AsusACPI.MaxTotal
+                && Math.Abs(live.Stapm - limit_total) <= DriftTolerance
+                && Math.Abs(live.Slow - limit_slow) <= DriftTolerance
+                && Math.Abs(live.Fast - limit_fast) <= DriftTolerance;
+
+            if (limitsMatch) return;
+
+            SetRyzenPower();
+            SetPower();
+        }
+
+        private static bool LiveTempMatches(PowerLimits? live, int cpuTemp)
+        {
+            if (live is null) return false;
+            return Math.Abs(live.TctlTemp - cpuTemp) <= DriftTolerance;
+        }
+
+        // False only when every writable WMI limit reads back matching config.
         public void WaitForApply()
         {
             try { _modeTask.Wait(5000); } catch { }
@@ -98,6 +159,7 @@ namespace GHelper.Mode
 
         public void AutoPerformance(bool powerChanged = false)
         {
+            if (powerChanged) lastPowerChange = DateTime.Now;
             if (!AppConfig.IsApplyPower())
                 ApplyLiveSmuOnUncheck();
 
@@ -649,13 +711,22 @@ namespace GHelper.Mode
             SetReapplyEnabled(AppConfig.IsApplyPower());
         }
 
-        // Scope A, small change: on uncheck, use whatever the OEM currently has in SMU
-        // instead of the hardcoded AsusACPI constants, then stop asserting power.
+        // On uncheck, revert to the machine's OEM factory defaults for this mode
+        // and stop asserting power. We used to read back live SMU values, but once
+        // the user has set a custom limit the SMU holds that custom value — reading
+        // it back re-applies the user's value instead of the factory defaults.
         // On non-AMD, or when the SMU read fails/returns null, fall back to the OEM
-        // machine-default constants (DefaultTotal/DefaultCPU/MaxCrossLoad/etc.) so the
-        // old behavior is preserved there, then stop asserting power.
+        // machine-default constants so the old behavior is preserved.
         public void ApplyLiveSmuOnUncheck()
         {
+            AppConfig.SetMode("limit_total", AsusACPI.DefaultTotal);
+            AppConfig.SetMode("limit_slow", AsusACPI.DefaultTotal);
+            AppConfig.SetMode("limit_fast", AsusACPI.DefaultTotal);
+            AppConfig.SetMode("limit_cpu", AsusACPI.DefaultCPU);
+            AppConfig.SetMode("limit_crossload", AsusACPI.MaxCrossLoad);
+            AppConfig.SetMode("limit_gpucpu", AsusACPI.MaxGPUtoCPU);
+            AppConfig.SetMode("limit_cputemp", AsusACPI.MaxCPUTemp);
+
             PowerLimits? lim = null;
             if (CpuInfo.IsAMD)
             {
@@ -671,31 +742,20 @@ namespace GHelper.Mode
                 }
             }
 
-            if (lim == null)
+            if (lim is not null)
             {
-                // Non-AMD fallback: original behavior — revert to the machine's per-model
-                // default constants for this mode, then stop asserting power.
-                AppConfig.SetMode("limit_total", AsusACPI.DefaultTotal);
-                AppConfig.SetMode("limit_slow", AsusACPI.DefaultTotal);
-                AppConfig.SetMode("limit_fast", AsusACPI.DefaultTotal);
-                AppConfig.SetMode("limit_cpu", AsusACPI.DefaultCPU);
-                AppConfig.SetMode("limit_crossload", AsusACPI.MaxCrossLoad);
-                AppConfig.SetMode("limit_gpucpu", AsusACPI.MaxGPUtoCPU);
-                AppConfig.SetMode("limit_cputemp", AsusACPI.MaxCPUTemp);
                 Logger.WriteLine(
-                    "ResetRyzen: no live SMU value, reverted to OEM constants (total " +
-                    AsusACPI.DefaultTotal + "W / cpu " + AsusACPI.DefaultCPU + "W)");
-                return;
+                    $"ResetRyzen: OEM defaults applied (total {AsusACPI.DefaultTotal}W / cpu {AsusACPI.DefaultCPU}W); "
+                    + $"live SMU was SPL={lim.Stapm:F1}W sPPT={lim.Slow:F1}W fPPT={lim.Fast:F1}W "
+                    + $"Tctl={lim.TctlTemp:F0}C"
+                    + (lim.ApuSlow.HasValue ? $" APU={lim.ApuSlow.Value:F1}W" : ""));
             }
-
-            Logger.WriteLine(
-                $"ResetRyzen: live SMU SPL={lim.Stapm:F1}W sPPT={lim.Slow:F1}W fPPT={lim.Fast:F1}W Tctl={lim.TctlTemp:F0}C" +
-                (lim.ApuSlow.HasValue ? $" APU={lim.ApuSlow.Value:F1}W" : ""));
-
-            AppConfig.SetMode("limit_total", (int)lim.Stapm);
-            AppConfig.SetMode("limit_slow", (int)lim.Slow);
-            AppConfig.SetMode("limit_fast", (int)lim.Fast);
-            AppConfig.SetMode("limit_cpu", (int)lim.Stapm);
+            else
+            {
+                Logger.WriteLine(
+                    "ResetRyzen: reverted to OEM constants (total "
+                    + AsusACPI.DefaultTotal + "W / cpu " + AsusACPI.DefaultCPU + "W) — no live SMU value available");
+            }
         }
 
         public void AutoRyzen()
