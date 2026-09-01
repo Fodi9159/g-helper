@@ -132,9 +132,13 @@ namespace GHelper
             labelLeftTotal = new Label();
             trackTotal = new RTrackBar();
             panelTitleCPU = new Panel();
-            pictureBoxCPU = new PictureBox();
-            labelPowerLimits = new Label();
-            panelBoost = new Panel();
+                        pictureBoxCPU = new PictureBox();
+                        labelPowerLimits = new Label();
+                        panelCPUCAP = new Panel();
+                        labelCPUCAP = new Label();
+                        labelLeftCPUCAP = new Label();
+                        trackCPUCAP = new RTrackBar();
+                        panelBoost = new Panel();
             panelBoostTitle = new Panel();
             pictureBoost = new PictureBox();
             labelBoost = new Label();
@@ -222,8 +226,9 @@ namespace GHelper
             panelCPUTemp.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)trackCPUTemp).BeginInit();
             panelTotal.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)trackTotal).BeginInit();
-            panelTitleCPU.SuspendLayout();
+                        ((System.ComponentModel.ISupportInitialize)trackTotal).BeginInit();
+                        ((System.ComponentModel.ISupportInitialize)trackCPUCAP).BeginInit();
+                        panelTitleCPU.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBoxCPU).BeginInit();
             panelBoost.SuspendLayout();
             panelBoostTitle.SuspendLayout();
@@ -1078,18 +1083,19 @@ namespace GHelper
             panelPower.AutoSize = true;
             panelPower.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             panelPower.Controls.Add(panelApplyPower);
-            panelPower.Controls.Add(panelCPUTemp);
-            panelPower.Controls.Add(panelGPUtoCPU);
-            panelPower.Controls.Add(panelCrossLoad);
-            panelPower.Controls.Add(panelCPU);
-            panelPower.Controls.Add(panelFast);
-            panelPower.Controls.Add(panelSlow);
-            panelPower.Controls.Add(panelTotal);
-            panelPower.Controls.Add(panelTitleCPU);
-            panelPower.Controls.Add(panelBoost);
-            panelPower.Controls.Add(panelBoostTitle);
-            panelPower.Controls.Add(panelPowerMode);
-            panelPower.Controls.Add(panelPowerModeTItle);
+                        panelPower.Controls.Add(panelCPUTemp);
+                        panelPower.Controls.Add(panelGPUtoCPU);
+                        panelPower.Controls.Add(panelCrossLoad);
+                        panelPower.Controls.Add(panelCPU);
+                        panelPower.Controls.Add(panelFast);
+                        panelPower.Controls.Add(panelSlow);
+                        panelPower.Controls.Add(panelTotal);
+                        panelPower.Controls.Add(panelCPUCAP);
+                        panelPower.Controls.Add(panelTitleCPU);
+                        panelPower.Controls.Add(panelBoost);
+                        panelPower.Controls.Add(panelBoostTitle);
+                        panelPower.Controls.Add(panelPowerMode);
+                        panelPower.Controls.Add(panelPowerModeTItle);
             panelPower.Dock = DockStyle.Top;
             panelPower.Location = new Point(10, 888);
             panelPower.Margin = new Padding(4);
@@ -1493,23 +1499,72 @@ namespace GHelper
             // labelPowerLimits
             // 
             labelPowerLimits.AutoSize = true;
-            labelPowerLimits.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            labelPowerLimits.Location = new Point(46, 16);
-            labelPowerLimits.Margin = new Padding(4, 0, 4, 0);
-            labelPowerLimits.Name = "labelPowerLimits";
-            labelPowerLimits.Size = new Size(160, 32);
-            labelPowerLimits.TabIndex = 39;
-            labelPowerLimits.Text = "Power Limits";
-            // 
-            // panelBoost
-            // 
-            panelBoost.Controls.Add(comboBoost);
-            panelBoost.Dock = DockStyle.Top;
-            panelBoost.Location = new Point(0, 184);
-            panelBoost.Margin = new Padding(4);
-            panelBoost.Name = "panelBoost";
-            panelBoost.Size = new Size(520, 64);
-            panelBoost.TabIndex = 3;
+                        labelPowerLimits.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                        labelPowerLimits.Location = new Point(46, 16);
+                        labelPowerLimits.Margin = new Padding(4, 0, 4, 0);
+                        labelPowerLimits.Name = "labelPowerLimits";
+                        labelPowerLimits.Size = new Size(160, 32);
+                        labelPowerLimits.TabIndex = 39;
+                        labelPowerLimits.Text = "Power Limits";
+                        // 
+                        // panelCPUCAP
+                        // 
+                        panelCPUCAP.AutoSize = true;
+                        panelCPUCAP.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+                        panelCPUCAP.Controls.Add(labelCPUCAP);
+                        panelCPUCAP.Controls.Add(labelLeftCPUCAP);
+                        panelCPUCAP.Controls.Add(trackCPUCAP);
+                        panelCPUCAP.Dock = DockStyle.Top;
+                        panelCPUCAP.Location = new Point(0, 248);
+                        panelCPUCAP.Margin = new Padding(4);
+                        panelCPUCAP.MaximumSize = new Size(0, 124);
+                        panelCPUCAP.Name = "panelCPUCAP";
+                        panelCPUCAP.Size = new Size(520, 124);
+                        panelCPUCAP.TabIndex = 5;
+                        // 
+                        // labelCPUCAP
+                        // 
+                        labelCPUCAP.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                        labelCPUCAP.Location = new Point(396, 10);
+                        labelCPUCAP.Margin = new Padding(4, 0, 4, 0);
+                        labelCPUCAP.Name = "labelCPUCAP";
+                        labelCPUCAP.Size = new Size(116, 32);
+                        labelCPUCAP.TabIndex = 13;
+                        labelCPUCAP.Text = "CPU CAP";
+                        labelCPUCAP.TextAlign = ContentAlignment.TopRight;
+                        // 
+                        // labelLeftCPUCAP
+                        // 
+                        labelLeftCPUCAP.AutoSize = true;
+                        labelLeftCPUCAP.Location = new Point(10, 10);
+                        labelLeftCPUCAP.Margin = new Padding(4, 0, 4, 0);
+                        labelLeftCPUCAP.Name = "labelLeftCPUCAP";
+                        labelLeftCPUCAP.Size = new Size(66, 32);
+                        labelLeftCPUCAP.TabIndex = 12;
+                        labelLeftCPUCAP.Text = "CPU Hard Cap (All Limits)";
+                        // 
+                        // trackCPUCAP
+                        // 
+                        trackCPUCAP.Location = new Point(6, 48);
+                        trackCPUCAP.Margin = new Padding(4, 2, 4, 2);
+                        trackCPUCAP.Maximum = 180;
+                        trackCPUCAP.Minimum = 10;
+                        trackCPUCAP.Name = "trackCPUCAP";
+                        trackCPUCAP.Size = new Size(508, 90);
+                        trackCPUCAP.TabIndex = 11;
+                        trackCPUCAP.TickFrequency = 5;
+                        trackCPUCAP.TickStyle = TickStyle.TopLeft;
+                        trackCPUCAP.Value = 80;
+                        // 
+                        // panelBoost
+                        // 
+                        panelBoost.Controls.Add(comboBoost);
+                        panelBoost.Dock = DockStyle.Top;
+                        panelBoost.Location = new Point(0, 184);
+                        panelBoost.Margin = new Padding(4);
+                        panelBoost.Name = "panelBoost";
+                        panelBoost.Size = new Size(520, 64);
+                        panelBoost.TabIndex = 3;
             // 
             // panelBoostTitle
             // 
@@ -2131,7 +2186,8 @@ namespace GHelper
             panelTotal.ResumeLayout(false);
             panelTotal.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)trackTotal).EndInit();
-            panelTitleCPU.ResumeLayout(false);
+                        ((System.ComponentModel.ISupportInitialize)trackCPUCAP).EndInit();
+                        panelTitleCPU.ResumeLayout(false);
             panelTitleCPU.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBoxCPU).EndInit();
             panelBoost.ResumeLayout(false);
@@ -2185,7 +2241,11 @@ namespace GHelper
         private Label labelCPU;
         private Label labelLeftCPU;
         private RTrackBar trackCPU;
-        private Panel panelTotal;
+                private Panel panelCPUCAP;
+                private Label labelCPUCAP;
+                private Label labelLeftCPUCAP;
+                private RTrackBar trackCPUCAP;
+                private Panel panelTotal;
         private Label labelTotal;
         private Label labelLeftTotal;
         private RTrackBar trackTotal;

@@ -377,3 +377,10 @@ probe_fancurve.exe
 probe_fanmode.exe
 bios_work/
 .freebuff/
+# boost measurement scripts (local experiments, not part of the app)
+boost_info.ps1
+check_boost.py
+compare_boost.py
+run_boost_compare.sh
+# C# boost-check harness (built artifact + source; rebuild from upstream if needed)
+CheckBoostHarness/
