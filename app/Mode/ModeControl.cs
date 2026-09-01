@@ -98,6 +98,9 @@ namespace GHelper.Mode
 
         public void AutoPerformance(bool powerChanged = false)
         {
+            if (!AppConfig.IsApplyPower())
+                ApplyLiveSmuOnUncheck();
+
             int mode = AppConfig.Get("performance_" + Program.PerformanceKey());
             Logger.WriteLine($"{Program.currentSource} Performance Mode: {Modes.GetName(mode == -1 ? Modes.GetCurrent() : mode)}");
 
@@ -145,6 +148,24 @@ namespace GHelper.Mode
             {
                 try
                 {
+                    var smu = GetSmu();
+                    if (smu is not null)
+                    {
+                        try
+                        {
+                            PowerLimits? lim = smu.GetPowerLimits();
+                            Logger.WriteLine(
+                                "LiveSMULimits: " + (lim == null
+                                    ? "null"
+                                    : $"SPL={lim.Stapm:F1}W sPPT={lim.Slow:F1}W fPPT={lim.Fast:F1}W Tctl={lim.TctlTemp:F0}C" +
+                                      (lim.ApuSlow.HasValue ? $" APU={lim.ApuSlow.Value:F1}W" : "")));
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.WriteLine("LiveSMULimits failed: " + ex.Message);
+                        }
+                    }
+
                     bool reset = AppConfig.IsResetRequired() && (Modes.GetBase(oldMode) == Modes.GetBase(mode)) && customPower > 0 && !AppConfig.IsApplyPower();
 
                     customFans = false;
@@ -626,6 +647,55 @@ namespace GHelper.Mode
             if (_igpuUV != 0) SetUViGPU(0);
             if (_cpuTemp != CpuInfo.DefaultTemp) SetCPUTemp(CpuInfo.DefaultTemp, true);
             SetReapplyEnabled(AppConfig.IsApplyPower());
+        }
+
+        // Scope A, small change: on uncheck, use whatever the OEM currently has in SMU
+        // instead of the hardcoded AsusACPI constants, then stop asserting power.
+        // On non-AMD, or when the SMU read fails/returns null, fall back to the OEM
+        // machine-default constants (DefaultTotal/DefaultCPU/MaxCrossLoad/etc.) so the
+        // old behavior is preserved there, then stop asserting power.
+        public void ApplyLiveSmuOnUncheck()
+        {
+            PowerLimits? lim = null;
+            if (CpuInfo.IsAMD)
+            {
+                try
+                {
+                    var smu = GetSmu();
+                    if (smu is not null)
+                        lim = smu.GetPowerLimits();
+                }
+                catch (Exception ex)
+                {
+                    Logger.WriteLine("ApplyLiveSmuOnUncheck: live SMU read failed: " + ex.Message);
+                }
+            }
+
+            if (lim == null)
+            {
+                // Non-AMD fallback: original behavior — revert to the machine's per-model
+                // default constants for this mode, then stop asserting power.
+                AppConfig.SetMode("limit_total", AsusACPI.DefaultTotal);
+                AppConfig.SetMode("limit_slow", AsusACPI.DefaultTotal);
+                AppConfig.SetMode("limit_fast", AsusACPI.DefaultTotal);
+                AppConfig.SetMode("limit_cpu", AsusACPI.DefaultCPU);
+                AppConfig.SetMode("limit_crossload", AsusACPI.MaxCrossLoad);
+                AppConfig.SetMode("limit_gpucpu", AsusACPI.MaxGPUtoCPU);
+                AppConfig.SetMode("limit_cputemp", AsusACPI.MaxCPUTemp);
+                Logger.WriteLine(
+                    "ResetRyzen: no live SMU value, reverted to OEM constants (total " +
+                    AsusACPI.DefaultTotal + "W / cpu " + AsusACPI.DefaultCPU + "W)");
+                return;
+            }
+
+            Logger.WriteLine(
+                $"ResetRyzen: live SMU SPL={lim.Stapm:F1}W sPPT={lim.Slow:F1}W fPPT={lim.Fast:F1}W Tctl={lim.TctlTemp:F0}C" +
+                (lim.ApuSlow.HasValue ? $" APU={lim.ApuSlow.Value:F1}W" : ""));
+
+            AppConfig.SetMode("limit_total", (int)lim.Stapm);
+            AppConfig.SetMode("limit_slow", (int)lim.Slow);
+            AppConfig.SetMode("limit_fast", (int)lim.Fast);
+            AppConfig.SetMode("limit_cpu", (int)lim.Stapm);
         }
 
         public void AutoRyzen()
