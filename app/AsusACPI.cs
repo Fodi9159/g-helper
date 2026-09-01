@@ -172,7 +172,7 @@ public class AsusACPI
 
     public const int MinTotal = 5;
 
-    public static int MaxTotal = 150;
+    public static int MaxTotal = 100;
     public static int DefaultTotal = 80;
 
     public const int MinCPU = 5;
