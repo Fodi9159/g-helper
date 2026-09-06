@@ -403,6 +403,9 @@ namespace GHelper
 
             Logger.WriteLine($"Power source: {currentSource} -> {source}");
             currentSource = source;
+            // Arm the reapply settle window even if SetAutoModes below is
+            // skipped by its own rate limiter.
+            modeControl.NotePowerTransition();
             SetAutoModes(powerChanged: true);
         }
 

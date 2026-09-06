@@ -250,7 +250,9 @@ namespace PawnIO
         // First ioctl_update_pm_table after hibernate/sleep resume returns
         // DEVICE_BUSY while the SMU mailbox is still processing wake-up state;
         // a brief retry is enough.
-        public PowerLimits? GetPowerLimits()
+        // log=false skips the full PM-table dump (used by the per-tick
+        // conditional reapply, which reads every few seconds).
+        public PowerLimits? GetPowerLimits(bool log = true)
         {
             ulong[] resolveOut = new ulong[2];
             if (!_io.Execute("ioctl_resolve_pm_table", null, resolveOut))
@@ -269,11 +271,14 @@ namespace PawnIO
 
             ReadOnlySpan<float> floats = MemoryMarshal.Cast<ulong, float>(words);
 
-            var sb = new System.Text.StringBuilder();
-            sb.Append($"PMTable ver=0x{tableVersion:X6} floats:");
-            for (int i = 0; i < floats.Length; i++)
-                sb.Append($" [{i}]={floats[i]:G6}");
-            Logger.WriteLine(sb.ToString());
+            if (log)
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.Append($"PMTable ver=0x{tableVersion:X6} floats:");
+                for (int i = 0; i < floats.Length; i++)
+                    sb.Append($" [{i}]={floats[i]:G6}");
+                Logger.WriteLine(sb.ToString());
+            }
 
             if (floats[0] == 0f)
                 return null;
