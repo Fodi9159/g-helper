@@ -756,6 +756,61 @@ namespace GHelper.Mode
                     "ResetRyzen: reverted to OEM constants (total "
                     + AsusACPI.DefaultTotal + "W / cpu " + AsusACPI.DefaultCPU + "W) — no live SMU value available");
             }
+
+            // Actually push the OEM defaults to the hardware right now.
+            // Without this the SMU/ACPI keeps enforcing the user's last-applied
+            // custom limit even though config has been reset.
+            // We cannot call SetPower() here because it checks IsApplyPower()
+            // which is now false after uncheck. Write directly to ACPI/SMU.
+            try
+            {
+                bool isAMD = CpuInfo.IsAMD;
+                bool allAMD = Program.acpi.IsAllAmdPPT();
+
+                // SPL / sPPT via ACPI (when the device is supported)
+                if (Program.acpi.IsSupported(AsusACPI.PPT_APUA0))
+                {
+                    Program.acpi.DeviceSet(AsusACPI.PPT_APUA3, AsusACPI.DefaultTotal, "PowerLimit A3 (reset)");
+                    Program.acpi.DeviceSet(AsusACPI.PPT_APUA0, AsusACPI.DefaultTotal, "PowerLimit A0 (reset)");
+                }
+                else if (isAMD && ProcessHelper.IsUserAdministrator())
+                {
+                    // AMD fallback: write via SMU
+                    var smu = GetSmu();
+                    if (smu is not null)
+                    {
+                        smu.SetAllLimits(AsusACPI.DefaultTotal, AsusACPI.DefaultTotal, AsusACPI.DefaultTotal,
+                            out var stapm, out var fast, out var slow);
+                        Logger.WriteLine("ResetRyzen: SMU reset STAPM=" + AsusACPI.DefaultTotal + "W FAST=" + AsusACPI.DefaultTotal + "W SLOW=" + AsusACPI.DefaultTotal + "W");
+                    }
+                }
+
+                // CPU PPT for all-AMD machines
+                if (allAMD)
+                {
+                    Program.acpi.DeviceSet(AsusACPI.PPT_CPUB0, AsusACPI.DefaultCPU, "PowerLimit B0 (reset)");
+                }
+                else if (isAMD && Program.acpi.IsSupported(AsusACPI.PPT_APUC1))
+                {
+                    Program.acpi.DeviceSet(AsusACPI.PPT_APUC1, AsusACPI.DefaultTotal, "PowerLimit C1 (reset)");
+                }
+
+                // Cross load, GPU-to-CPU, CPU temp limits (ACPI)
+                if (Program.acpi.IsSupported(AsusACPI.PPT_CROSS9F))
+                    Program.acpi.DeviceSet(AsusACPI.PPT_CROSS9F, AsusACPI.MaxCrossLoad, "PowerLimit 9F (reset)");
+
+                if (Program.acpi.IsSupported(AsusACPI.PPT_GPUCPU9C))
+                    Program.acpi.DeviceSet(AsusACPI.PPT_GPUCPU9C, AsusACPI.MaxGPUtoCPU, "PowerLimit 9C (reset)");
+
+                if (Program.acpi.IsSupported(AsusACPI.PPT_TEMP9E))
+                    Program.acpi.DeviceSet(AsusACPI.PPT_TEMP9E, AsusACPI.MaxCPUTemp, "PowerLimit 9E (reset)");
+
+                Logger.WriteLine("ResetRyzen: hardware limits reset to OEM defaults via direct ACPI/SMU writes");
+            }
+            catch (Exception ex)
+            {
+                Logger.WriteLine("ResetRyzen: failed to reset hardware limits: " + ex.Message);
+            }
         }
 
         public void AutoRyzen()
