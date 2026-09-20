@@ -55,7 +55,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Sync with upstream (rebase, fork custom code wins)
+      - name: Sync with upstream (merge, fork custom code wins)
         shell: bash
         run: |
           set -e
@@ -68,11 +68,12 @@ jobs:
           PRE_SYNC_SHA=$(git rev-parse HEAD)
           echo "Pre-sync fork main: $PRE_SYNC_SHA"
 
-          # Replay fork commits on top of latest upstream. During a rebase, -X theirs
-          # means "the replayed fork commit wins", so custom code is preserved even
-          # where upstream touched the same files.
-          if ! git rebase -X theirs upstream/main; then
-            echo "Rebase stopped — resolving residual conflicts (add/delete on workflow files)"
+          # Merge latest upstream into fork main. -X ours means "fork wins" on
+          # conflicting hunks, so custom code is preserved where both sides
+          # touched the same files. History is never rewritten: main only moves
+          # forward, so local clones can always pull without conflicts.
+          if ! git merge upstream/main -X ours --no-edit; then
+            echo "Merge stopped — resolving residual conflicts (add/delete on workflow files)"
             for i in 1 2 3 4 5; do
               UNRESOLVED=$(git diff --name-only --diff-filter=U)
               [ -z "$UNRESOLVED" ] && break
@@ -80,13 +81,13 @@ jobs:
               # the fork does not want upstream workflow files, so remove them
               git rm -f $UNRESOLVED 2>/dev/null || true
               git add -A
-              GIT_EDITOR=true git rebase --continue || break
+              GIT_EDITOR=true git merge --continue || break
             done
           fi
 
           # Reconcile the fork's known collisions with upstream. The fork's custom
-          # commits were written against an old upstream, so -X theirs replays them
-          # verbatim and clobbers upstream additions in the same spots. This is the
+          # commits were written against an old upstream, so -X ours resolves them
+          # verbatim and can clobber upstream additions in the same spots. This is the
           # list of known collisions; anything else is caught by the build gate below.
           #
           # 1. AsusACPI.cs — the fork keeps this file identical to upstream. Its only
@@ -151,7 +152,7 @@ jobs:
           if [ -z "$EXISTING" ]; then
             gh issue create --repo "${{ github.repository }}" \
               --title "Custom code missing after upstream sync" \
-              --body "The rebase onto upstream/main dropped custom fork code or an upstream symbol the fork relies on (Windows mode, fork auto-update URL, or the AsusACPI enum). The sync was **not** pushed. Fix locally with \`git fetch upstream && git rebase -X theirs upstream/main\` and push the fix, or update the marker checks in \`.github/workflows/sync-upstream.yml\`."
+              --body "The merge of upstream/main dropped custom fork code or an upstream symbol the fork relies on (Windows mode, fork auto-update URL, or the AsusACPI enum). The sync was **not** pushed. Fix locally with \`git fetch upstream && git merge upstream/main -X ours\` and push the fix, or update the marker checks in \`.github/workflows/sync-upstream.yml\`."
           fi
           echo "Custom code missing — aborting sync"
           exit 1
@@ -187,7 +188,7 @@ jobs:
           if [ -z "$EXISTING" ]; then
             gh issue create --repo "${{ github.repository }}" \
               --title "Sync build failed after upstream rebase" \
-              --body "The fork rebased onto upstream/main but the code does not compile, so main was **not** pushed. Reproduce locally with \`git fetch upstream && git rebase -X theirs upstream/main\`, fix the compile errors, push the fix, then re-run this workflow via workflow_dispatch."
+              --body "The fork merged upstream/main but the code does not compile, so main was **not** pushed. Reproduce locally with \`git fetch upstream && git merge upstream/main -X ours\`, fix the compile errors, push the fix, then re-run this workflow via workflow_dispatch."
           fi
           echo "Build failed — aborting without pushing main"
           exit 1
@@ -196,7 +197,7 @@ jobs:
         if: env.build_failed != 'true'
         shell: bash
         run: |
-          git push --force-with-lease origin main
+          git push origin main
           echo "Synced main pushed: $(git rev-parse --short HEAD)"
 
       - name: Package ZIP
