@@ -172,7 +172,7 @@ jobs:
         if: env.custom_missing != 'true'
         shell: bash
         run: |
-          if ! dotnet publish app/GHelper.sln --configuration Release --runtime win-x64 -p:PublishSingleFile=true --no-self-contained; then
+          if ! dotnet publish app/GHelper.sln --configuration Release --runtime win-x64 -p:PublishSingleFile=true --self-contained; then
             echo "build_failed=true" >> "$GITHUB_ENV"
           fi
 
