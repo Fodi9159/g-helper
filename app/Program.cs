@@ -39,6 +39,7 @@ namespace GHelper
         public static int WM_TASKBARCREATED = 0;
 
         private static long lastAuto;
+        private static long lastTheme;
         private static readonly object autoLock = new();
 
         public static InputDispatcher? inputDispatcher;
@@ -263,12 +264,12 @@ namespace GHelper
         static void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
         {
 
+            if (Math.Abs(DateTimeOffset.Now.ToUnixTimeMilliseconds() - lastTheme) < 2000) return;
+
             switch (e.Category)
             {
                 case UserPreferenceCategory.General:
-                    if (!settingsForm.InitTheme()) return;
-
-                    Debug.WriteLine("Theme Changed");
+                    bool changed = settingsForm.InitTheme();
                     settingsForm.InitContextMenuTheme();
                     settingsForm.VisualiseIcon(true);
                     settingsForm.VisualiseFnLock();

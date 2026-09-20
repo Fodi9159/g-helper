@@ -2468,6 +2468,20 @@ namespace GHelper
             string squares = new string('|', filledSquares);
             labelMatrix.Text = $"Slash Lighting: {squares}";
         }
+        private void AlignFnLock()
+        {
+            buttonFnLock.Width = buttonOverlay.Width = (buttonKeyboard.Width - 8) / 2;
+            buttonOverlay.Left = buttonFnLock.Left - 8 - buttonOverlay.Width;
+        }
+
+        public void VisualiseOverlay()
+        {
+            bool enabled = AppConfig.IsOverlay();
+            buttonOverlay.BackColor = enabled ? colorEco : buttonSecond;
+            buttonOverlay.ForeColor = enabled ? SystemColors.ControlLightLight : SystemColors.ControlDark;
+            buttonOverlayAlly.Activated = enabled;
+        }
+
         public void VisualiseFnLock()
         {
 
