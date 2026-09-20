@@ -142,6 +142,7 @@ jobs:
 
       - name: Alert if custom code was lost
         if: env.custom_missing == 'true'
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -177,6 +178,7 @@ jobs:
 
       - name: Alert if build failed (main NOT pushed)
         if: env.build_failed == 'true'
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
