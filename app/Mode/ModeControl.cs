@@ -179,9 +179,11 @@ namespace GHelper.Mode
 
             Program.acpi.SetPerformanceMode(Modes.GetCurrentBase());
 
-            // Default power mode
+            // Clear the saved per-mode power mode, but do NOT switch the live
+            // Windows power plan here: Factory Defaults must never change the
+            // user's plan. The mode default re-applies on the next explicit
+            // mode switch (SetPerformanceMode).
             AppConfig.RemoveMode("powermode");
-            PowerNative.SetPowerMode(Modes.GetCurrentBase());
         }
 
         public void Toast()

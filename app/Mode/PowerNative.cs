@@ -212,9 +212,11 @@ namespace GHelper.Mode
                     return POWER_TURBO;
                 case 2: //silent
                     return POWER_SILENT;
-                case 3:
-                    return PLAN_HIGH_PERFORMANCE;
-                default: // balanced
+                // base 3 ("Windows" mode) falls through to the default:
+                // the legacy High Performance plan is no longer forced as
+                // its default; users can still pick it explicitly in the
+                // Power mode dropdown (saved per mode via "powermode").
+                default: // balanced (also "Windows" mode)
                     return POWER_BALANCED;
             }
         }
