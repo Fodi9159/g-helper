@@ -59,6 +59,14 @@ namespace GHelper.AutoUpdate
             }
         }
 
+        public void VersionLabelClick()
+        {
+            if (update)
+                Update();
+            else
+                ForceCheckForUpdates();
+        }
+
         public void LoadReleases()
         {
             try

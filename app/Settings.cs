@@ -1067,7 +1067,7 @@ namespace GHelper
 
         private void LabelVersion_Click(object? sender, EventArgs e)
         {
-            updateControl.ForceCheckForUpdates();
+            updateControl.VersionLabelClick();
         }
 
 
