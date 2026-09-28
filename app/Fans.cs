@@ -34,6 +34,8 @@ namespace GHelper
         const int fansMax = 100;
 
         NvidiaGpuControl? nvControl = null;
+        int _gpuStockVoltage = -1; // factory P0 voltage in mV, -1 when unreadable
+        bool _gpuVoltageLocked; // true when driver is pinned at a voltage (not stock default)
         ModeControl modeControl = Program.modeControl;
 
         FanSensorControl fanSensorControl;
@@ -200,6 +202,9 @@ namespace GHelper
             trackGPUClockLimit.Minimum = NvidiaGpuControl.MinClockLimit;
             trackGPUClockLimit.Maximum = NvidiaGpuControl.MaxClockLimit;
 
+            trackGPUVoltage.Minimum = NvidiaGpuControl.MinVoltage;
+            trackGPUVoltage.Maximum = NvidiaGpuControl.MaxVoltage;
+
             trackGPUCore.Minimum = NvidiaGpuControl.MinCoreOffset;
             trackGPUCore.Maximum = NvidiaGpuControl.MaxCoreOffset;
 
@@ -216,6 +221,7 @@ namespace GHelper
             trackGPUPower.Maximum = AsusACPI.MaxGPUPower;
 
             trackGPUClockLimit.Scroll += trackGPUClockLimit_Scroll;
+            trackGPUVoltage.Scroll += trackGPUVoltage_Scroll;
             trackGPUCore.Scroll += trackGPU_Scroll;
             trackGPUMemory.Scroll += trackGPU_Scroll;
 
@@ -226,6 +232,8 @@ namespace GHelper
             trackGPUCore.MouseUp += TrackGPUClocks_MouseUp;
             trackGPUMemory.MouseUp += TrackGPUClocks_MouseUp;
             trackGPUClockLimit.MouseUp += TrackGPUClocks_MouseUp;
+            trackGPUVoltage.MouseUp += TrackGPUVoltage_MouseUp;
+            buttonGPUVoltageDefault.Click += ButtonGPUVoltageDefault_Click;
 
             trackGPUBoost.MouseUp += TrackGPU_MouseUp;
             trackGPUTemp.MouseUp += TrackGPU_MouseUp;
@@ -318,8 +326,31 @@ namespace GHelper
             trackGPUTemp.AccessibleName = labelGPUTempTitle.Text;
             trackGPUPower.AccessibleName = labelGPUPowerTitle.Text;
             trackGPUClockLimit.AccessibleName = labelGPUClockLimitTitle.Text;
+            trackGPUVoltage.AccessibleName = labelGPUVoltageTitle.Text;
             trackHysteresisUp.AccessibleName = labelHysteresisUp.Text;
             trackHysteresisDown.AccessibleName = labelHysteresisDown.Text;
+
+            // manual value entry on click for every slider value label
+            EditableLabel(labelTotal, trackTotal, TrackTotal_Scroll, ApplyPowerLimits);
+            EditableLabel(labelSlow, trackSlow, TrackSlow_Scroll, ApplyPowerLimits);
+            EditableLabel(labelFast, trackFast, TrackFast_Scroll, ApplyPowerLimits);
+            EditableLabel(labelCPU, trackCPU, TrackCPU_Scroll, ApplyPowerLimits);
+            EditableLabel(labelCPUCAP, trackCPUCAP, TrackCPUCAP_Scroll, ApplyPowerLimits);
+            EditableLabel(labelCrossLoad, trackCrossLoad, TrackCross_Scroll, ApplyPowerLimits);
+            EditableLabel(labelGPUtoCPU, trackGPUtoCPU, TrackCross_Scroll, ApplyPowerLimits);
+            EditableLabel(labelCPUTemp, trackCPUTemp, TrackCross_Scroll, ApplyPowerLimits);
+            EditableLabel(labelGPUClockLimit, trackGPUClockLimit, trackGPUClockLimit_Scroll, ApplyGpuClocks);
+            EditableLabel(labelGPUVoltage, trackGPUVoltage, trackGPUVoltage_Scroll, ApplyGpuVoltage);
+            EditableLabel(labelGPUCore, trackGPUCore, trackGPU_Scroll, ApplyGpuClocks);
+            EditableLabel(labelGPUMemory, trackGPUMemory, trackGPU_Scroll, ApplyGpuClocks);
+            EditableLabel(labelGPUBoost, trackGPUBoost, trackGPUPower_Scroll, ApplyGpuPower);
+            EditableLabel(labelGPUTemp, trackGPUTemp, trackGPUPower_Scroll, ApplyGpuPower);
+            EditableLabel(labelGPUPower, trackGPUPower, trackGPUPower_Scroll, ApplyGpuPower);
+            EditableLabel(labelHysteresisUpValue, trackHysteresisUp, TrackHysteresis_Scroll, ApplyHysteresis);
+            EditableLabel(labelHysteresisDownValue, trackHysteresisDown, TrackHysteresis_Scroll, ApplyHysteresis);
+            EditableLabel(labelUV, trackUV, TrackUV_Scroll);
+            EditableLabel(labelUViGPU, trackUViGPU, TrackUV_Scroll);
+            EditableLabel(labelTemp, trackTemp, TrackUV_Scroll);
 
             chartCPU.AccessibleName = "CPU fan curve";
             chartGPU.AccessibleName = "GPU fan curve";
@@ -422,6 +453,87 @@ namespace GHelper
             ResumeLayout(false);
             PerformLayout();
         }
+
+        // Click-to-edit on a slider's value label: swaps in a small textbox over the label,
+        // commits via the slider's existing commit handler on Enter/focus loss, reverts on Escape.
+        void EditableLabel(Label label, TrackBar track, EventHandler commit, Action? apply = null)
+        {
+            TextBox edit = new RTextBox();
+            Control host = null!;   // container the edit box is placed in
+            bool editing = false;
+            bool done = false;
+
+            void EndEdit(bool applyEdit)
+            {
+                if (done) return; // commit only once (Enter followed by LostFocus)
+                done = true;
+
+                int value = track.Value;
+                if (applyEdit && int.TryParse(edit.Text, out int parsed))
+                    value = Math.Clamp(parsed, track.Minimum, track.Maximum);
+
+                if (value != track.Value)
+                {
+                    track.Value = value;
+                    commit(track, EventArgs.Empty);
+                    apply?.Invoke();
+                }
+                if (host is not null) host.Controls.Remove(edit);
+                label.Visible = true;
+                editing = false;
+            }
+
+            label.Click += (sender, e) =>
+            {
+                if (editing) return;
+                editing = true;
+                done = false;
+                label.Visible = false;
+                edit.Text = track.Value.ToString();
+                edit.Size = new Size(Math.Max(label.Width / 2, 30), label.Height);
+                // right-align the textbox over the value, same as the label
+                Point spot = new Point(label.Right - edit.Width, label.Top);
+                host = track.Parent;
+                if (host is TableLayoutPanel) host = host.Parent!;   // can't absolutely position inside a table
+                edit.Location = host.PointToClient(label.Parent.PointToScreen(spot));
+                host.Controls.Add(edit);
+                edit.BringToFront();
+                edit.Focus();
+                edit.SelectAll();
+            };
+
+            edit.KeyDown += (sender, e) =>
+            {
+                if (e.KeyCode == Keys.Enter) { e.Handled = e.SuppressKeyPress = true; EndEdit(true); }
+                if (e.KeyCode == Keys.Escape) { e.Handled = e.SuppressKeyPress = true; EndEdit(false); }
+                if (e.KeyCode == Keys.Up || e.KeyCode == Keys.Down)
+                {
+                    e.Handled = e.SuppressKeyPress = true;
+                    edit.Text = (track.Value + (e.KeyCode == Keys.Up ? 1 : -1)).ToString();
+                }
+            };
+
+            edit.LostFocus += (sender, e) => EndEdit(true);
+        }
+
+        // same "on release" behavior as the sliders' MouseUp/KeyUp handlers
+        void ApplyPowerLimits()
+        {
+            Task.Run(() =>
+            {
+                modeControl.AutoPower(true);
+                if (AppConfig.IsApplyPower())
+                    ModeControl.SetReapplyEnabled(true);
+            });
+        }
+
+        void ApplyGpuPower() => modeControl.SetGPUPower();
+
+        void ApplyGpuClocks() => modeControl.SetGPUClocks(true);
+
+        void ApplyGpuVoltage() => modeControl.SetGPUVoltage(true);
+
+        void ApplyHysteresis() => Program.acpi.SetFanHysteresis(trackHysteresisUp.Value, trackHysteresisDown.Value);
 
         private void ButtonAdvanced_Click(object? sender, EventArgs e)
         {
@@ -605,6 +717,21 @@ namespace GHelper
             modeControl.SetGPUClocks(true);
         }
 
+        private void TrackGPUVoltage_MouseUp(object? sender, MouseEventArgs e)
+        {
+            modeControl.SetGPUVoltage(true);
+        }
+
+        private void ButtonGPUVoltageDefault_Click(object? sender, EventArgs e)
+        {
+            AppConfig.RemoveMode("gpu_voltage");
+            _gpuVoltageLocked = false;
+            int live = nvControl?.GetLiveVoltage() ?? -1;
+            if (live > 0) trackGPUVoltage.Value = Math.Clamp(live, trackGPUVoltage.Minimum, trackGPUVoltage.Maximum);
+            VisualiseGPUSettings();
+            modeControl.SetGPUVoltage(true, true);
+        }
+
         private void InitGPUPower()
         {
             if (!isGPUPower) return;
@@ -662,6 +789,7 @@ namespace GHelper
                     int core = AppConfig.GetMode("gpu_core");
                     int memory = AppConfig.GetMode("gpu_memory");
                     int clock_limit = AppConfig.GetMode("gpu_clock_limit");
+                    int voltage = AppConfig.GetMode("gpu_voltage");
 
                     if (gpu_boost < 0) gpu_boost = AsusACPI.MaxGPUBoost;
                     if (gpu_temp < 0) gpu_temp = AsusACPI.MaxGPUTemp;
@@ -672,6 +800,9 @@ namespace GHelper
 
                     string? gpuName = null;
 
+                    int stock = -1;
+                    bool locked = false;
+
                     if (nvControl is not null)
                     {
                         if (nvControl.GetClocks(out int current_core, out int current_memory))
@@ -680,12 +811,22 @@ namespace GHelper
                             memory = current_memory;
                         }
 
-                        int _clockLimit = nvControl.GetMaxGPUCLock();
+                        stock = nvControl.GetStockVoltage();
+                        int live = nvControl.GetLiveVoltage();
+                        int park = live > 0 ? live : NvidiaGpuControl.MinVoltage;
 
-                        if (_clockLimit == 0) clock_limit = NvidiaGpuControl.MaxClockLimit;
-                        else if (_clockLimit > 0) clock_limit = _clockLimit;
+                        // Display follows per-mode config intent: the driver boost-lock struct
+                        // can't tell a clock cap from a voltage lock, so it is never read back.
+                        locked = voltage > 0 && (stock <= 0 || voltage != stock);
+                        if (voltage < 0) voltage = stock > 0 ? stock : park;
+                        if (voltage > NvidiaGpuControl.MaxVoltage) { voltage = stock > 0 ? stock : park; locked = false; } // heal stale over-range values
 
                         try { gpuName = nvControl.FullName; } catch { }
+                    }
+                    else
+                    {
+                        if (voltage < 0) voltage = NvidiaGpuControl.MinVoltage;
+                        if (clock_limit < 0) clock_limit = NvidiaGpuControl.MaxClockLimit;
                     }
 
                     bool boostVisible = Program.acpi.IsSupported(AsusACPI.PPT_GPUC0);
@@ -696,7 +837,12 @@ namespace GHelper
                         gpuVisible = buttonGPU.Visible = true;
                         if (gpuName is not null) labelGPU.Text = gpuName;
 
+                        _gpuStockVoltage = stock;
+                        _gpuVoltageLocked = locked;
+
                         trackGPUClockLimit.Value = Math.Max(Math.Min(clock_limit, NvidiaGpuControl.MaxClockLimit), NvidiaGpuControl.MinClockLimit);
+
+                        trackGPUVoltage.Value = Math.Max(Math.Min(voltage, NvidiaGpuControl.MaxVoltage), NvidiaGpuControl.MinVoltage);
 
                         trackGPUCore.Value = Math.Max(Math.Min(core, NvidiaGpuControl.MaxCoreOffset), NvidiaGpuControl.MinCoreOffset);
                         trackGPUMemory.Value = Math.Max(Math.Min(memory, NvidiaGpuControl.MaxMemoryOffset), NvidiaGpuControl.MinMemoryOffset);
@@ -732,6 +878,13 @@ namespace GHelper
                 labelGPUClockLimit.Text = "Default";
             else
                 labelGPUClockLimit.Text = $"{trackGPUClockLimit.Value} MHz";
+
+            if (_gpuStockVoltage > 0 && trackGPUVoltage.Value == _gpuStockVoltage)
+                labelGPUVoltage.Text = $"Default ({_gpuStockVoltage} mV)";
+            else if (!_gpuVoltageLocked)
+                labelGPUVoltage.Text = "Default";
+            else
+                labelGPUVoltage.Text = $"{trackGPUVoltage.Value} mV";
 
             labelGPUPower.Text = (gpuPowerBase + trackGPUPower.Value) + "W";
 
@@ -787,6 +940,17 @@ namespace GHelper
 
             trackGPUClockLimit.Value = maxClock;
             AppConfig.SetMode("gpu_clock_limit", maxClock);
+            VisualiseGPUSettings();
+        }
+
+        private void trackGPUVoltage_Scroll(object? sender, EventArgs e)
+        {
+
+            int voltage = NvidiaGpuControl.SnapVoltage(trackGPUVoltage.Value);
+
+            trackGPUVoltage.Value = voltage;
+            _gpuVoltageLocked = _gpuStockVoltage <= 0 || voltage != _gpuStockVoltage;
+            AppConfig.SetMode("gpu_voltage", voltage);
             VisualiseGPUSettings();
         }
 
@@ -1145,6 +1309,7 @@ namespace GHelper
             labelTotal.Text = trackTotal.Value.ToString() + "W";
             labelSlow.Text = trackSlow.Value.ToString() + "W";
             labelCPU.Text = trackCPU.Value.ToString() + "W";
+            labelCPUCAP.Text = trackCPUCAP.Value.ToString() + "W";
             labelFast.Text = trackFast.Value.ToString() + "W";
 
             labelCrossLoad.Text = trackCrossLoad.Value.ToString() + "W";
@@ -1379,6 +1544,10 @@ namespace GHelper
             if (gpuVisible)
             {
                 trackGPUClockLimit.Value = NvidiaGpuControl.MaxClockLimit;
+                trackGPUVoltage.Value = _gpuStockVoltage > 0
+                    ? Math.Max(Math.Min(_gpuStockVoltage, NvidiaGpuControl.MaxVoltage), NvidiaGpuControl.MinVoltage)
+                    : trackGPUVoltage.Value;
+                _gpuVoltageLocked = false;
                 trackGPUCore.Value = 0;
                 trackGPUMemory.Value = 0;
 
@@ -1392,6 +1561,7 @@ namespace GHelper
                 AppConfig.RemoveMode("gpu_temp");
 
                 AppConfig.RemoveMode("gpu_power");
+                AppConfig.RemoveMode("gpu_voltage");
                 AppConfig.RemoveMode("gpu_clock_limit");
                 AppConfig.RemoveMode("gpu_core");
                 AppConfig.RemoveMode("gpu_memory");
@@ -1399,6 +1569,7 @@ namespace GHelper
                 InitGPUPower();
 
                 VisualiseGPUSettings();
+                modeControl.SetGPUVoltage(true, true);
                 modeControl.SetGPUClocks(true, true);
                 modeControl.SetGPUPower();
             }

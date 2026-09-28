@@ -18,6 +18,9 @@ public class NvidiaGpuControl : IGpuControl
     public static int MinCoreOffset = AppConfig.Get("min_gpu_core", -250);
     public static int MinMemoryOffset = AppConfig.Get("min_gpu_memory", -500);
 
+    public static int MinVoltage = AppConfig.Get("min_gpu_voltage", AppConfig.Get("min_gpu_clock", 400));
+    public const int MaxVoltage = 1300;
+
     public static int MinClockLimit = AppConfig.Get("min_gpu_clock", 400);
     public const int MaxClockLimit = 3000;
 
@@ -243,38 +246,118 @@ public class NvidiaGpuControl : IGpuControl
 
     }
 
-    public int GetMaxGPUCLock()
+    public static int SnapVoltage(int mv) => (int)Math.Round(mv / 5f) * 5;
+
+    private static int? _stockVoltage;
+
+    // Stock (factory) P0 core voltage in mV, snapped to 5. -1 when unreadable.
+    public int GetStockVoltage()
     {
-        PhysicalGPU internalGpu = _internalGpu!;
+        if (_stockVoltage is not null) return _stockVoltage.Value;
+
+        int stock = -1;
         try
         {
-            PrivateClockBoostLockV2 data = GPUApi.GetClockBoostLock(internalGpu.Handle);
-            int limit = (int)data.ClockBoostLocks[0].VoltageInMicroV / 1000;
-            Logger.WriteLine("GET CLOCK LIMIT: " + limit);
-            return limit;
+            ReadCurrentTemperature(true); // wake GPU for P-state reading, like GetClocks
+            IPerformanceStates20Info states = GPUApi.GetPerformanceStates20(_internalGpu!.Handle);
+            var volts = states.Voltages[PerformanceStateId.P0_3DPerformance];
+            foreach (var v in volts)
+            {
+                if (v.ValueInMicroVolt > 0 && (stock < 0 || v.IsEditable))
+                {
+                    stock = SnapVoltage((int)v.ValueInMicroVolt / 1000);
+                    if (v.IsEditable) break;
+                }
+            }
+            Logger.WriteLine("GET GPU STOCK VOLTAGE: " + stock);
         }
         catch (Exception ex)
         {
-            Logger.WriteLine("GET CLOCK LIMIT: " + ex.Message);
-            return -1;
+            Logger.WriteLine("GET GPU STOCK VOLTAGE: " + ex.Message);
+        }
 
+        _stockVoltage = stock;
+        return stock;
+    }
+
+    // Live voltage right now in mV, snapped to 5. -1 when unreadable.
+    public int GetLiveVoltage()
+    {
+        try
+        {
+            int mv = (int)GPUApi.GetCurrentVoltage(_internalGpu!.Handle).ValueInMicroVolt / 1000;
+            return mv > 0 ? SnapVoltage(mv) : -1;
+        }
+        catch (Exception ex)
+        {
+            Logger.WriteLine("GET GPU LIVE VOLTAGE: " + ex.Message);
+            return -1;
         }
     }
 
+    // NOTE: the driver's boost-lock struct is shared between the clock cap (nvidia-smi -lgc)
+    // and the voltage lock, with ambiguous units (locked MHz show up where mV is expected and
+    // vice versa, and unlocked it reports live voltage). So neither slider reads it back:
+    // both track last-applied state in statics below, and the UI shows per-mode config intent.
+    private static string? _lastLimitCmd; // last nvidia-smi clock command, null = unknown
+    private static int _lastVoltage = -1; // last applied voltage lock in mV, 0 = unlocked, -1 = unknown
 
     public int SetMaxGPUClock(int clock)
     {
 
         if (clock < MinClockLimit || clock >= MaxClockLimit) clock = 0;
 
-        int _clockLimit = GetMaxGPUCLock();
+        string cmd = clock > 0 ? $"nvidia-smi -lgc 0,{clock}" : $"nvidia-smi -rgc";
 
-        if (_clockLimit == clock) return 0;
+        if (_lastLimitCmd == cmd) return 0;
+        _lastLimitCmd = cmd;
 
-        if (clock > 0) RunPowershellCommand($"nvidia-smi -lgc 0,{clock}");
-        else RunPowershellCommand($"nvidia-smi -rgc");
+        Logger.WriteLine("GPU LIMIT: " + cmd);
+        RunPowershellCommand(cmd);
         return 1;
 
+
+    }
+
+
+    public int SetVoltage(int voltage)
+    {
+
+        int stock = GetStockVoltage();
+
+        // Stock selection (or out of range) means true default: unlock, don't pin a value.
+        if ((stock > 0 && voltage == stock) || voltage < MinVoltage || voltage > MaxVoltage) voltage = 0;
+
+        if (_lastVoltage == voltage) return 0;
+        if (voltage > 1000) Logger.WriteLine($"SET GPU VOLTAGE: {voltage} mV is above the tested 500-1000 mV range!");
+
+        PhysicalGPU internalGpu = _internalGpu!;
+        try
+        {
+            PrivateClockBoostLockV2 data = voltage > 0
+                ? new PrivateClockBoostLockV2(new[] { new PrivateClockBoostLockV2.ClockBoostLock(PublicClockDomain.Graphics, ClockLockMode.Manual, (uint)(voltage * 1000)) })
+                : new PrivateClockBoostLockV2(new[] { new PrivateClockBoostLockV2.ClockBoostLock(PublicClockDomain.Graphics, ClockLockMode.None, 0) });
+
+            Logger.WriteLine($"SET GPU VOLTAGE: {voltage}");
+            GPUApi.SetClockBoostLock(internalGpu.Handle, data);
+
+            if (voltage == 0 && _lastVoltage != 0)
+            {
+                // Stale driver locks (e.g. from nvidia-smi caps mirroring into the boost-lock
+                // struct) are not always cleared by the NVAPI unlock: reset locked clocks too.
+                // Runs before any clock cap is (re-)applied by the caller.
+                RunPowershellCommand($"nvidia-smi -rgc");
+                _lastLimitCmd = $"nvidia-smi -rgc";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.WriteLine("SET GPU VOLTAGE: " + ex.Message);
+            return -1;
+        }
+
+        _lastVoltage = voltage;
+        return 1;
 
     }
 

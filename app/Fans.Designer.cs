@@ -172,6 +172,11 @@ namespace GHelper
             labelGPUClockLimit = new Label();
             trackGPUClockLimit = new RTrackBar();
             labelGPUClockLimitTitle = new Label();
+            panelGPUVoltage = new Panel();
+            labelGPUVoltage = new Label();
+            trackGPUVoltage = new RTrackBar();
+            labelGPUVoltageTitle = new Label();
+            buttonGPUVoltageDefault = new RButton();
             panelTitleGPU = new Panel();
             pictureGPU = new PictureBox();
             labelGPU = new Label();
@@ -249,6 +254,8 @@ namespace GHelper
             ((System.ComponentModel.ISupportInitialize)trackGPUCore).BeginInit();
             panelGPUClockLimit.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)trackGPUClockLimit).BeginInit();
+            panelGPUVoltage.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)trackGPUVoltage).BeginInit();
             panelTitleGPU.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureGPU).BeginInit();
             panelNav.SuspendLayout();
@@ -1670,6 +1677,7 @@ namespace GHelper
             panelGPU.Controls.Add(panelGPUPower);
             panelGPU.Controls.Add(panelGPUMemory);
             panelGPU.Controls.Add(panelGPUCore);
+            panelGPU.Controls.Add(panelGPUVoltage);
             panelGPU.Controls.Add(panelGPUClockLimit);
             panelGPU.Controls.Add(panelTitleGPU);
             panelGPU.Dock = DockStyle.Top;
@@ -1978,6 +1986,67 @@ namespace GHelper
             labelGPUClockLimitTitle.TabIndex = 17;
             labelGPUClockLimitTitle.Text = "Core Clock Limit";
             // 
+            // panelGPUVoltage
+            // 
+            panelGPUVoltage.AutoSize = true;
+            panelGPUVoltage.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            panelGPUVoltage.Controls.Add(labelGPUVoltage);
+            panelGPUVoltage.Controls.Add(trackGPUVoltage);
+            panelGPUVoltage.Controls.Add(labelGPUVoltageTitle);
+            panelGPUVoltage.Controls.Add(buttonGPUVoltageDefault);
+            panelGPUVoltage.Dock = DockStyle.Top;
+            panelGPUVoltage.Location = new Point(0, 184);
+            panelGPUVoltage.Margin = new Padding(4);
+            panelGPUVoltage.MaximumSize = new Size(0, 124);
+            panelGPUVoltage.Name = "panelGPUVoltage";
+            panelGPUVoltage.Size = new Size(520, 124);
+            panelGPUVoltage.TabIndex = 2;
+            // 
+            // labelGPUVoltage
+            // 
+            labelGPUVoltage.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            labelGPUVoltage.Location = new Point(272, 16);
+            labelGPUVoltage.Margin = new Padding(4, 0, 4, 0);
+            labelGPUVoltage.Name = "labelGPUVoltage";
+            labelGPUVoltage.Size = new Size(124, 32);
+            labelGPUVoltage.TabIndex = 29;
+            labelGPUVoltage.Text = "850 mV";
+            labelGPUVoltage.TextAlign = ContentAlignment.TopRight;
+            // 
+            // trackGPUVoltage
+            // 
+            trackGPUVoltage.LargeChange = 100;
+            trackGPUVoltage.Location = new Point(6, 48);
+            trackGPUVoltage.Margin = new Padding(4, 2, 4, 2);
+            trackGPUVoltage.Maximum = 1300;
+            trackGPUVoltage.Minimum = 400;
+            trackGPUVoltage.Name = "trackGPUVoltage";
+            trackGPUVoltage.RightToLeft = RightToLeft.No;
+            trackGPUVoltage.Size = new Size(496, 90);
+            trackGPUVoltage.SmallChange = 5;
+            trackGPUVoltage.TabIndex = 18;
+            trackGPUVoltage.TickFrequency = 50;
+            trackGPUVoltage.TickStyle = TickStyle.TopLeft;
+            // 
+            // labelGPUVoltageTitle
+            // 
+            labelGPUVoltageTitle.AutoSize = true;
+            labelGPUVoltageTitle.Location = new Point(10, 16);
+            labelGPUVoltageTitle.Margin = new Padding(4, 0, 4, 0);
+            labelGPUVoltageTitle.Name = "labelGPUVoltageTitle";
+            labelGPUVoltageTitle.Size = new Size(188, 32);
+            labelGPUVoltageTitle.TabIndex = 17;
+            labelGPUVoltageTitle.Text = "Core Voltage";
+            // 
+            // buttonGPUVoltageDefault
+            // 
+            buttonGPUVoltageDefault.Location = new Point(404, 8);
+            buttonGPUVoltageDefault.Margin = new Padding(4, 2, 4, 2);
+            buttonGPUVoltageDefault.Name = "buttonGPUVoltageDefault";
+            buttonGPUVoltageDefault.Size = new Size(100, 36);
+            buttonGPUVoltageDefault.TabIndex = 30;
+            buttonGPUVoltageDefault.Text = "Default";
+            // 
             // panelTitleGPU
             // 
             panelTitleGPU.AutoSize = true;
@@ -2218,6 +2287,9 @@ namespace GHelper
             panelGPUClockLimit.ResumeLayout(false);
             panelGPUClockLimit.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)trackGPUClockLimit).EndInit();
+            panelGPUVoltage.ResumeLayout(false);
+            panelGPUVoltage.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)trackGPUVoltage).EndInit();
             panelTitleGPU.ResumeLayout(false);
             panelTitleGPU.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)pictureGPU).EndInit();
@@ -2334,6 +2406,11 @@ namespace GHelper
         private Label labelGPUClockLimit;
         private RTrackBar trackGPUClockLimit;
         private Label labelGPUClockLimitTitle;
+        private Panel panelGPUVoltage;
+        private Label labelGPUVoltage;
+        private RTrackBar trackGPUVoltage;
+        private Label labelGPUVoltageTitle;
+        private RButton buttonGPUVoltageDefault;
         private RButton buttonCalibrate;
         private Panel panelSlow;
         private Label labelSlow;

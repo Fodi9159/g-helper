@@ -249,6 +249,7 @@ namespace GHelper.Mode
                     if (AppConfig.Is("status_mode")) Program.acpi.DeviceSet(AsusACPI.StatusMode, [0x00, Modes.GetBase(mode) == AsusACPI.PerformanceSilent ? (byte)0x02 : (byte)0x03], "StatusMode");
                     Program.acpi.SetPerformanceMode(AppConfig.IsManualModeRequired() ? AsusACPI.PerformanceManual : Modes.GetBase(mode));
 
+                    SetGPUVoltage();
                     SetGPUClocks();
 
                     await Task.Delay(TimeSpan.FromMilliseconds(100), ct);
@@ -549,6 +550,36 @@ namespace GHelper.Mode
                 catch (Exception ex)
                 {
                     Logger.WriteLine("Clocks Error:" + ex.ToString());
+                }
+
+                settings.GPUInit();
+            });
+        }
+
+        public void SetGPUVoltage(bool launchAsAdmin = true, bool reset = false)
+        {
+            Task.Run(() =>
+            {
+
+                int voltage = AppConfig.GetMode("gpu_voltage");
+
+                if (reset) voltage = 0;
+
+                if (voltage == -1) return;
+
+                if (Program.acpi.DeviceGet(AsusACPI.GPUEco) == 1) { Logger.WriteLine("Voltage: Eco"); return; }
+                if (HardwareControl.GpuControl is null) { Logger.WriteLine("Voltage: NoGPUControl"); return; }
+                if (!HardwareControl.GpuControl!.IsNvidia) { Logger.WriteLine("Voltage: NotNvidia"); return; }
+
+                NvidiaGpuControl nvControl = (NvidiaGpuControl)HardwareControl.GpuControl;
+                try
+                {
+                    int status = nvControl.SetVoltage(voltage);
+                    if (status != 0 && launchAsAdmin) ProcessHelper.RunAsAdmin("gpu");
+                }
+                catch (Exception ex)
+                {
+                    Logger.WriteLine("Voltage Error:" + ex.ToString());
                 }
 
                 settings.GPUInit();

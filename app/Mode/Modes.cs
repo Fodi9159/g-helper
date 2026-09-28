@@ -22,6 +22,7 @@
             { "gpu_temp", "int" },
             { "gpu_core", "int" },
             { "gpu_memory", "int" },
+            { "gpu_voltage", "int" },
             { "gpu_clock_limit", "int" },
             { "cpu_temp", "_" },
             { "cpu_uv", "_" },

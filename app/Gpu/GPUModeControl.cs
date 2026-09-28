@@ -219,6 +219,7 @@ namespace GHelper.Gpu
                         Program.modeControl.AutoPerformance();
                     } else
                     {
+                        Program.modeControl.SetGPUVoltage(false);
                         Program.modeControl.SetGPUClocks(false);
                     }
                 }
