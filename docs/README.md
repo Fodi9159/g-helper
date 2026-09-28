@@ -177,6 +177,7 @@ Huge thanks to [@IceStormNG](https://github.com/IceStormNG) 👑 for contributio
 <details>
 <summary><a href="https://github.com/seerge/g-helper/discussions/5710">Currently supported models</a> (click to expand)</summary>
 
+- ASUS TX 98
 - ROG Azoth
 - ROG Azoth Extreme
 - ROG Azoth Extreme SE
@@ -203,6 +204,7 @@ Huge thanks to [@IceStormNG](https://github.com/IceStormNG) 👑 for contributio
 - TUF Gaming K1
 - TUF Gaming K3
 - TUF Gaming K3 Gen II
+- TUF Gaming K3 Gen II Miku Edition
 
 </details>
 
@@ -247,6 +249,7 @@ Battery level, lighting, equalizer presets, sidetone, microphone and AI noise ca
 - ``Ctrl + Shift + Alt + F18`` - Turbo
 - ``Ctrl + Shift + Alt + F19`` - Custom 1 (if exists)
 - ``Ctrl + Shift + Alt + F20`` - Custom 2 (if exists)
+- ``Ctrl + Shift + Alt + F21`` - Toggle XG Mobile
 - [Custom keybindings / hotkeys](https://github.com/seerge/g-helper/wiki/Power-user-settings#custom-hotkey-actions)
 
 ### 🎮ROG Ally Bindings

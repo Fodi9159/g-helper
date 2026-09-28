@@ -570,6 +570,8 @@ namespace GHelper.Peripherals
             DetectKeyboard(new TUFK1());
             DetectKeyboard(new TUFK3());
             DetectKeyboard(new TUFK3GenII());
+            DetectKeyboard(new TUFK3GenIIMiku());
+            DetectKeyboard(new TX98());
             DetectKeyboard(new ClaymoreII());
         }
 
