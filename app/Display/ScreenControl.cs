@@ -172,6 +172,7 @@ namespace GHelper.Display
             {
                 amd.SetFreeSync(saved == 1);
                 Logger.WriteLine($"FreeSync re-applied: {saved}");
+                InitScreen();
             }
         }
 

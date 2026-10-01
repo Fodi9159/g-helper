@@ -18,7 +18,7 @@ public class NvidiaGpuControl : IGpuControl
     public static int MinCoreOffset = AppConfig.Get("min_gpu_core", -250);
     public static int MinMemoryOffset = AppConfig.Get("min_gpu_memory", -500);
 
-    public static int MinVoltage = AppConfig.Get("min_gpu_voltage", AppConfig.Get("min_gpu_clock", 400));
+    public static int MinVoltage = AppConfig.Get("min_gpu_voltage", 400);
     public const int MaxVoltage = 1300;
 
     public static int MinClockLimit = AppConfig.Get("min_gpu_clock", 400);
@@ -246,14 +246,16 @@ public class NvidiaGpuControl : IGpuControl
 
     }
 
-    public static int SnapVoltage(int mv) => (int)Math.Round(mv / 5f) * 5;
+    public static int SnapVoltage(int mv) => (int)Math.Round(mv / 5f, MidpointRounding.AwayFromZero) * 5;
 
     private static int? _stockVoltage;
 
     // Stock (factory) P0 core voltage in mV, snapped to 5. -1 when unreadable.
+    // Only successful reads are cached, so a failed read (e.g. dGPU asleep)
+    // is retried on the next call instead of sticking at -1 for the session.
     public int GetStockVoltage()
     {
-        if (_stockVoltage is not null) return _stockVoltage.Value;
+        if (_stockVoltage is not null && _stockVoltage.Value > 0) return _stockVoltage.Value;
 
         int stock = -1;
         try
@@ -276,7 +278,7 @@ public class NvidiaGpuControl : IGpuControl
             Logger.WriteLine("GET GPU STOCK VOLTAGE: " + ex.Message);
         }
 
-        _stockVoltage = stock;
+        _stockVoltage = stock > 0 ? stock : null;
         return stock;
     }
 
@@ -295,10 +297,38 @@ public class NvidiaGpuControl : IGpuControl
         }
     }
 
+    // Current voltage lock straight from the driver: (locked, mV).
+    // (false, -1) when unlocked, when the read fails (e.g. missing privilege),
+    // or when the value is outside the voltage range (a clock cap mirrors into
+    // this same struct with MHz-scale values, and unlocked it reports live voltage).
+    // LockMode is the authority, not the value.
+    public (bool locked, int mv) GetVoltageLock()
+    {
+        try
+        {
+            var data = GPUApi.GetClockBoostLock(_internalGpu!.Handle);
+            var locks = data.ClockBoostLocks;
+            if (locks is null || locks.Length == 0) return (false, -1);
+            if (!locks.Any(l => l.ClockDomain == PublicClockDomain.Graphics)) return (false, -1);
+            var entry = locks.First(l => l.ClockDomain == PublicClockDomain.Graphics);
+            if (entry.LockMode != ClockLockMode.Manual) return (false, -1);
+            int mv = SnapVoltage((int)(entry.VoltageInMicroV / 1000));
+            if (mv < MinVoltage || mv > MaxVoltage) return (false, -1);
+            Logger.WriteLine("GET GPU VOLTAGE LOCK: " + mv);
+            return (true, mv);
+        }
+        catch (Exception ex)
+        {
+            Logger.WriteLine("GET GPU VOLTAGE LOCK: " + ex.Message);
+            return (false, -1);
+        }
+    }
+
     // NOTE: the driver's boost-lock struct is shared between the clock cap (nvidia-smi -lgc)
-    // and the voltage lock, with ambiguous units (locked MHz show up where mV is expected and
-    // vice versa, and unlocked it reports live voltage). So neither slider reads it back:
-    // both track last-applied state in statics below, and the UI shows per-mode config intent.
+    // and the voltage lock: a cap at or below the voltage max is indistinguishable from a
+    // voltage lock of the same number, and unlocked it reports live voltage. So the clock
+    // slider never reads it back, and the voltage slider only trusts a read-back value that
+    // is in range, in Manual mode, and doesn't match the configured clock cap (see InitGPU).
     private static string? _lastLimitCmd; // last nvidia-smi clock command, null = unknown
     private static int _lastVoltage = -1; // last applied voltage lock in mV, 0 = unlocked, -1 = unknown
 
@@ -329,7 +359,7 @@ public class NvidiaGpuControl : IGpuControl
         if ((stock > 0 && voltage == stock) || voltage < MinVoltage || voltage > MaxVoltage) voltage = 0;
 
         if (_lastVoltage == voltage) return 0;
-        if (voltage > 1000) Logger.WriteLine($"SET GPU VOLTAGE: {voltage} mV is above the tested 500-1000 mV range!");
+        if (voltage > 1000) Logger.WriteLine($"SET GPU VOLTAGE: {voltage} mV is above the commonly tested 500-1000 mV range (slider max {MaxVoltage} mV), proceed with caution!");
 
         PhysicalGPU internalGpu = _internalGpu!;
         try

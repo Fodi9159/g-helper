@@ -233,6 +233,10 @@ namespace GHelper
             trackGPUMemory.MouseUp += TrackGPUClocks_MouseUp;
             trackGPUClockLimit.MouseUp += TrackGPUClocks_MouseUp;
             trackGPUVoltage.MouseUp += TrackGPUVoltage_MouseUp;
+            trackGPUCore.KeyUp += TrackGPUClocks_KeyUp;
+            trackGPUMemory.KeyUp += TrackGPUClocks_KeyUp;
+            trackGPUClockLimit.KeyUp += TrackGPUClocks_KeyUp;
+            trackGPUVoltage.KeyUp += TrackGPUVoltage_KeyUp;
             buttonGPUVoltageDefault.Click += ButtonGPUVoltageDefault_Click;
 
             trackGPUBoost.MouseUp += TrackGPU_MouseUp;
@@ -529,9 +533,18 @@ namespace GHelper
 
         void ApplyGpuPower() => modeControl.SetGPUPower();
 
-        void ApplyGpuClocks() => modeControl.SetGPUClocks(true);
+        void ApplyGpuClocks()
+        {
+            CommitClockLimit();
+            CommitGpuOffsets();
+            modeControl.SetGPUClocks(true);
+        }
 
-        void ApplyGpuVoltage() => modeControl.SetGPUVoltage(true);
+        void ApplyGpuVoltage()
+        {
+            CommitVoltage();
+            modeControl.SetGPUVoltage(true);
+        }
 
         void ApplyHysteresis() => Program.acpi.SetFanHysteresis(trackHysteresisUp.Value, trackHysteresisDown.Value);
 
@@ -714,11 +727,27 @@ namespace GHelper
 
         private void TrackGPUClocks_MouseUp(object? sender, MouseEventArgs e)
         {
+            CommitClockLimit();
+            CommitGpuOffsets();
+            modeControl.SetGPUClocks(true);
+        }
+
+        private void TrackGPUClocks_KeyUp(object? sender, KeyEventArgs e)
+        {
+            CommitClockLimit();
+            CommitGpuOffsets();
             modeControl.SetGPUClocks(true);
         }
 
         private void TrackGPUVoltage_MouseUp(object? sender, MouseEventArgs e)
         {
+            CommitVoltage();
+            modeControl.SetGPUVoltage(true);
+        }
+
+        private void TrackGPUVoltage_KeyUp(object? sender, KeyEventArgs e)
+        {
+            CommitVoltage();
             modeControl.SetGPUVoltage(true);
         }
 
@@ -726,10 +755,25 @@ namespace GHelper
         {
             AppConfig.RemoveMode("gpu_voltage");
             _gpuVoltageLocked = false;
-            int live = nvControl?.GetLiveVoltage() ?? -1;
-            if (live > 0) trackGPUVoltage.Value = Math.Clamp(live, trackGPUVoltage.Minimum, trackGPUVoltage.Maximum);
             VisualiseGPUSettings();
             modeControl.SetGPUVoltage(true, true);
+            // Live-voltage read can block on NVAPI: fetch off the UI thread,
+            // then park the thumb without re-applying.
+            var nv = nvControl;
+            Task.Run(() =>
+            {
+                int live = nv?.GetLiveVoltage() ?? -1;
+                if (live <= 0) return;
+                try
+                {
+                    BeginInvoke(delegate
+                    {
+                        trackGPUVoltage.Value = Math.Clamp(live, trackGPUVoltage.Minimum, trackGPUVoltage.Maximum);
+                        VisualiseGPUSettings();
+                    });
+                }
+                catch (ObjectDisposedException) { }
+            });
         }
 
         private void InitGPUPower()
@@ -815,11 +859,28 @@ namespace GHelper
                         int live = nvControl.GetLiveVoltage();
                         int park = live > 0 ? live : NvidiaGpuControl.MinVoltage;
 
-                        // Display follows per-mode config intent: the driver boost-lock struct
-                        // can't tell a clock cap from a voltage lock, so it is never read back.
-                        locked = voltage > 0 && (stock <= 0 || voltage != stock);
-                        if (voltage < 0) voltage = stock > 0 ? stock : park;
-                        if (voltage > NvidiaGpuControl.MaxVoltage) { voltage = stock > 0 ? stock : park; locked = false; } // heal stale over-range values
+                        // Prefer the live driver state, like the other sliders: a failed
+                        // apply (e.g. no admin rights) or a lock left over from another
+                        // mode must not be shown as the current limit.
+                        var (drvLocked, drvMv) = nvControl.GetVoltageLock();
+                        // A configured clock cap mirrors into the same driver struct: if the
+                        // read-back value matches the cap, it is the cap, not a voltage lock.
+                        bool mirror = drvLocked && clock_limit > 0 && clock_limit < NvidiaGpuControl.MaxClockLimit
+                            && Math.Abs(drvMv - clock_limit) <= 5;
+                        if (drvLocked && !mirror)
+                        {
+                            voltage = drvMv;
+                            locked = stock <= 0 || drvMv != stock;
+                        }
+                        else
+                        {
+                            // Fallback to per-mode config intent when the driver reports
+                            // no voltage lock (or the read itself is unavailable).
+                            locked = voltage > 0 && (stock <= 0 || voltage != stock);
+                            if (voltage < 0) voltage = stock > 0 ? stock : park;
+                            if (voltage > NvidiaGpuControl.MaxVoltage) { voltage = stock > 0 ? stock : park; locked = false; } // heal stale over-range values
+                            if (voltage > 0 && voltage < NvidiaGpuControl.MinVoltage) { voltage = stock > 0 ? stock : park; locked = false; } // heal stale under-range values
+                        }
 
                         try { gpuName = nvControl.FullName; } catch { }
                     }
@@ -879,10 +940,10 @@ namespace GHelper
             else
                 labelGPUClockLimit.Text = $"{trackGPUClockLimit.Value} MHz";
 
-            if (_gpuStockVoltage > 0 && trackGPUVoltage.Value == _gpuStockVoltage)
-                labelGPUVoltage.Text = $"Default ({_gpuStockVoltage} mV)";
+            if (!_gpuVoltageLocked && _gpuStockVoltage > 0)
+                labelGPUVoltage.Text = $"Stock ({_gpuStockVoltage} mV)";
             else if (!_gpuVoltageLocked)
-                labelGPUVoltage.Text = "Default";
+                labelGPUVoltage.Text = "Stock";
             else
                 labelGPUVoltage.Text = $"{trackGPUVoltage.Value} mV";
 
@@ -933,39 +994,80 @@ namespace GHelper
         }
 
 
+        // Preview while dragging: snap + label only, no disk writes.
+        // The config is saved once on release (MouseUp/KeyUp) via the Commit* helpers.
         private void trackGPUClockLimit_Scroll(object? sender, EventArgs e)
         {
+            PreviewClockLimit();
+        }
 
-            int maxClock = (int)Math.Round((float)trackGPUClockLimit.Value / 5) * 5;
+        private void PreviewClockLimit()
+        {
+            int maxClock = (int)Math.Round(trackGPUClockLimit.Value / 5f, MidpointRounding.AwayFromZero) * 5;
+            if (trackGPUClockLimit.Value != maxClock) trackGPUClockLimit.Value = maxClock;
+            VisualiseGPUSettings();
+        }
 
-            trackGPUClockLimit.Value = maxClock;
+        private void CommitClockLimit()
+        {
+            int maxClock = (int)Math.Round(trackGPUClockLimit.Value / 5f, MidpointRounding.AwayFromZero) * 5;
+            if (trackGPUClockLimit.Value != maxClock) trackGPUClockLimit.Value = maxClock;
             AppConfig.SetMode("gpu_clock_limit", maxClock);
             VisualiseGPUSettings();
         }
 
         private void trackGPUVoltage_Scroll(object? sender, EventArgs e)
         {
+            PreviewVoltage();
+        }
 
+        private void PreviewVoltage()
+        {
             int voltage = NvidiaGpuControl.SnapVoltage(trackGPUVoltage.Value);
-
-            trackGPUVoltage.Value = voltage;
+            if (trackGPUVoltage.Value != voltage) trackGPUVoltage.Value = voltage;
             _gpuVoltageLocked = _gpuStockVoltage <= 0 || voltage != _gpuStockVoltage;
-            AppConfig.SetMode("gpu_voltage", voltage);
+            VisualiseGPUSettings();
+        }
+
+        private void CommitVoltage()
+        {
+            int voltage = NvidiaGpuControl.SnapVoltage(trackGPUVoltage.Value);
+            if (trackGPUVoltage.Value != voltage) trackGPUVoltage.Value = voltage;
+            _gpuVoltageLocked = _gpuStockVoltage <= 0 || voltage != _gpuStockVoltage;
+            // Stock position means true default: clear the saved value instead
+            // of storing the stock number (SetVoltage unlocks either way).
+            if (_gpuStockVoltage > 0 && voltage == _gpuStockVoltage)
+                AppConfig.RemoveMode("gpu_voltage");
+            else
+                AppConfig.SetMode("gpu_voltage", voltage);
             VisualiseGPUSettings();
         }
 
         private void trackGPU_Scroll(object? sender, EventArgs e)
         {
-            if (sender is null) return;
-            TrackBar track = (TrackBar)sender;
-            track.Value = (int)Math.Round((float)track.Value / 5) * 5;
+            PreviewGpuOffsets();
+        }
 
+        private void PreviewGpuOffsets()
+        {
+            SnapGpuOffsets();
+            VisualiseGPUSettings();
+        }
+
+        private void SnapGpuOffsets()
+        {
+            int core = (int)Math.Round(trackGPUCore.Value / 5f, MidpointRounding.AwayFromZero) * 5;
+            int memory = (int)Math.Round(trackGPUMemory.Value / 5f, MidpointRounding.AwayFromZero) * 5;
+            if (trackGPUCore.Value != core) trackGPUCore.Value = core;
+            if (trackGPUMemory.Value != memory) trackGPUMemory.Value = memory;
+        }
+
+        private void CommitGpuOffsets()
+        {
+            SnapGpuOffsets();
             AppConfig.SetMode("gpu_core", trackGPUCore.Value);
             AppConfig.SetMode("gpu_memory", trackGPUMemory.Value);
-
-
             VisualiseGPUSettings();
-
         }
 
         private void trackGPUPower_Scroll(object? sender, EventArgs e)

@@ -1618,7 +1618,19 @@ namespace GHelper
             }
             else
             {
-                buttonFreeSync.Visible = false;
+                int savedFreeSync = AppConfig.Get("freesync");
+                if (savedFreeSync == 0 || savedFreeSync == 1)
+                {
+                    buttonFreeSync.Visible = true;
+                    ButtonEnabled(buttonFreeSync, screenEnabled && !hdr);
+                    buttonFreeSync.Activated = savedFreeSync > 0;
+                    buttonFreeSync.Text = savedFreeSync > 0 ? "FreeSync On" : "FreeSync Off";
+                    buttonFreeSync.BorderColor = colorStandard;
+                }
+                else
+                {
+                    buttonFreeSync.Visible = false;
+                }
             }
             if (!screenEnabled) labelVisual.Text = Properties.Strings.VisualModesScreen;
 

@@ -209,6 +209,10 @@ namespace GHelper.Input
                 if (actionM2 is not null && actionM2.Length > 0 && !MKeyControl.IsFirmware("m2")) hook.RegisterHotKey(ModifierKeys.NoRepeat, Keys.VolumeUp);
             }
 
+            string actionFne = AppConfig.GetString("fne");
+            if (AppConfig.IsTUF() && actionFne is not null && actionFne.Length > 0 && actionFne != "calculator")
+                hook.RegisterHotKey(ModifierKeys.NoRepeat, Keys.LaunchApplication2);
+
             if (AppConfig.IsAlly())
             {
                 hook.RegisterHotKey(keyModifierAlt, Keys.F1);
@@ -507,6 +511,14 @@ namespace GHelper.Input
                     case Keys.VolumeUp:
                         KeyProcess("m2");
                         break;
+                    case Keys.LaunchApplication2:
+                        string fneAction = AppConfig.GetString("fne");
+                        if (AppConfig.IsTUF() && fneAction is not null && fneAction.Length > 0 && fneAction != "calculator")
+                        {
+                            KeyProcess("fne");
+                            return;
+                        }
+                        break;
                     case Keys.Left:
                         KeyboardHook.KeyPress(Keys.Home);
                         break;
@@ -523,6 +535,16 @@ namespace GHelper.Input
                         break;
                 }
 
+            }
+
+            if (e.Modifier == ModifierKeys.NoRepeat && e.Key == Keys.LaunchApplication2)
+            {
+                string fneActionNR = AppConfig.GetString("fne");
+                if (AppConfig.IsTUF() && fneActionNR is not null && fneActionNR.Length > 0 && fneActionNR != "calculator")
+                {
+                    KeyProcess("fne");
+                    return;
+                }
             }
 
             if (e.Modifier == keyModifier)

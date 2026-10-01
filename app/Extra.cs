@@ -129,7 +129,7 @@ namespace GHelper
                 if (combo.SelectedValue is not null)
                     AppConfig.Set(name, combo.SelectedValue.ToString());
 
-                if (name == "m1" || name == "m2" || name == "m3" || name == "m4" || name == "m5" || name.StartsWith("row_"))
+                if (name == "m1" || name == "m2" || name == "m3" || name == "m4" || name == "m5" || name == "fne" || name.StartsWith("row_"))
                 {
                     MKeyControl.ApplyAll();
                     Program.inputDispatcher.RegisterKeys();

@@ -2005,10 +2005,10 @@ namespace GHelper
             // labelGPUVoltage
             // 
             labelGPUVoltage.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            labelGPUVoltage.Location = new Point(272, 16);
+            labelGPUVoltage.Location = new Point(226, 16);
             labelGPUVoltage.Margin = new Padding(4, 0, 4, 0);
             labelGPUVoltage.Name = "labelGPUVoltage";
-            labelGPUVoltage.Size = new Size(124, 32);
+            labelGPUVoltage.Size = new Size(170, 32);
             labelGPUVoltage.TabIndex = 29;
             labelGPUVoltage.Text = "850 mV";
             labelGPUVoltage.TextAlign = ContentAlignment.TopRight;
@@ -2045,7 +2045,7 @@ namespace GHelper
             buttonGPUVoltageDefault.Name = "buttonGPUVoltageDefault";
             buttonGPUVoltageDefault.Size = new Size(100, 36);
             buttonGPUVoltageDefault.TabIndex = 30;
-            buttonGPUVoltageDefault.Text = "Default";
+            buttonGPUVoltageDefault.Text = "Reset";
             // 
             // panelTitleGPU
             // 

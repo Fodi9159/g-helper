@@ -460,6 +460,10 @@ namespace GHelper
                 settingsForm.Left = screen.WorkingArea.Width - 10 - settingsForm.Width;
                 settingsForm.Top = screen.WorkingArea.Height - 10 - settingsForm.Height;
 
+                // Refresh from hardware before first paint, so buttons
+                // (FreeSync On/Off, etc.) already show the live state
+                settingsForm.RefreshState();
+
                 settingsForm.Show();
                 settingsForm.ShowAll();
 

@@ -551,8 +551,8 @@ namespace GHelper.Mode
                 {
                     Logger.WriteLine("Clocks Error:" + ex.ToString());
                 }
-
-                settings.GPUInit();
+                // No UI refresh here: the initiating UI already shows the new
+                // values, and mode switches refresh via SetPerformanceMode's FansInit.
             });
         }
 
@@ -581,8 +581,8 @@ namespace GHelper.Mode
                 {
                     Logger.WriteLine("Voltage Error:" + ex.ToString());
                 }
-
-                settings.GPUInit();
+                // No UI refresh here: the initiating UI already shows the new
+                // value, and mode switches refresh via SetPerformanceMode's FansInit.
             });
         }
 
