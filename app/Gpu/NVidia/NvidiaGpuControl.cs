@@ -19,7 +19,9 @@ public class NvidiaGpuControl : IGpuControl
     public static int MinMemoryOffset = AppConfig.Get("min_gpu_memory", -500);
 
     public static int MinVoltage = AppConfig.Get("min_gpu_voltage", 400);
-    public const int MaxVoltage = 1300;
+    public static int MaxVoltage = AppConfig.Get("max_gpu_voltage", 1300);
+
+    public static int LowVoltageWarnThreshold = AppConfig.Get("low_gpu_voltage_warn", 500);
 
     public static int MinClockLimit = AppConfig.Get("min_gpu_clock", 400);
     public const int MaxClockLimit = 3000;
@@ -28,6 +30,7 @@ public class NvidiaGpuControl : IGpuControl
 
     public NvidiaGpuControl()
     {
+        InvalidateStockCache();
         _internalGpu = GetInternalDiscreteGpu();
         if (IsValid)
         {
@@ -249,13 +252,24 @@ public class NvidiaGpuControl : IGpuControl
     public static int SnapVoltage(int mv) => (int)Math.Round(mv / 5f, MidpointRounding.AwayFromZero) * 5;
 
     private static int? _stockVoltage;
+    private static string? _stockGpuName;
+
+    public static void InvalidateStockCache()
+    {
+        _stockVoltage = null;
+        _stockGpuName = null;
+    }
 
     // Stock (factory) P0 core voltage in mV, snapped to 5. -1 when unreadable.
     // Only successful reads are cached, so a failed read (e.g. dGPU asleep)
     // is retried on the next call instead of sticking at -1 for the session.
+    // The cache is tied to the GPU name, so a GPU/driver change re-reads it.
     public int GetStockVoltage()
     {
-        if (_stockVoltage is not null && _stockVoltage.Value > 0) return _stockVoltage.Value;
+        string? gpuName = null;
+        try { gpuName = _internalGpu?.FullName; } catch { }
+        if (_stockVoltage is not null && _stockVoltage.Value > 0 && _stockGpuName == gpuName) return _stockVoltage.Value;
+        if (_stockGpuName != gpuName) _stockVoltage = null;
 
         int stock = -1;
         try
@@ -267,7 +281,7 @@ public class NvidiaGpuControl : IGpuControl
             {
                 if (v.ValueInMicroVolt > 0 && (stock < 0 || v.IsEditable))
                 {
-                    stock = SnapVoltage((int)v.ValueInMicroVolt / 1000);
+                    stock = SnapVoltage((int)(v.ValueInMicroVolt / 1000));
                     if (v.IsEditable) break;
                 }
             }
@@ -278,7 +292,15 @@ public class NvidiaGpuControl : IGpuControl
             Logger.WriteLine("GET GPU STOCK VOLTAGE: " + ex.Message);
         }
 
-        _stockVoltage = stock > 0 ? stock : null;
+        if (stock > 0)
+        {
+            _stockVoltage = stock;
+            _stockGpuName = gpuName;
+        }
+        else
+        {
+            _stockVoltage = null;
+        }
         return stock;
     }
 
@@ -287,7 +309,7 @@ public class NvidiaGpuControl : IGpuControl
     {
         try
         {
-            int mv = (int)GPUApi.GetCurrentVoltage(_internalGpu!.Handle).ValueInMicroVolt / 1000;
+            int mv = (int)(GPUApi.GetCurrentVoltage(_internalGpu!.Handle).ValueInMicroVolt / 1000);
             return mv > 0 ? SnapVoltage(mv) : -1;
         }
         catch (Exception ex)
@@ -332,6 +354,31 @@ public class NvidiaGpuControl : IGpuControl
     private static string? _lastLimitCmd; // last nvidia-smi clock command, null = unknown
     private static int _lastVoltage = -1; // last applied voltage lock in mV, 0 = unlocked, -1 = unknown
 
+    // Return codes: 1 = applied, 0 = noop, -1 = failed, -2 = needs admin (permission).
+    // Only -2 should trigger a UAC relaunch; -1 is logged and ignored.
+    public const int NeedsAdmin = -2;
+
+    private static bool IsPermissionError(Exception ex)
+    {
+        string msg = ex.Message ?? "";
+        if (msg.Contains("access", StringComparison.OrdinalIgnoreCase)) return true;
+        if (msg.Contains("privilege", StringComparison.OrdinalIgnoreCase)) return true;
+        if (msg.Contains("permission", StringComparison.OrdinalIgnoreCase)) return true;
+        if (msg.Contains("admin", StringComparison.OrdinalIgnoreCase)) return true;
+        if (msg.Contains("NOT_SUPPORTED", StringComparison.OrdinalIgnoreCase)) return true;
+        if (msg.Contains("NVAPI_NO_PERMISSION", StringComparison.OrdinalIgnoreCase)) return true;
+        const int E_ACCESSDENIED = unchecked((int)0x80070005);
+        if (ex.HResult == E_ACCESSDENIED) return true;
+        return false;
+    }
+
+    private static int ToNeedsAdminOrFail(Exception ex)
+    {
+        Logger.WriteLine("GPU NVAPI: " + ex.Message);
+        if (ProcessHelper.IsUserAdministrator()) return -1;
+        return IsPermissionError(ex) ? NeedsAdmin : -1;
+    }
+
     public int SetMaxGPUClock(int clock)
     {
 
@@ -350,7 +397,7 @@ public class NvidiaGpuControl : IGpuControl
     }
 
 
-    public int SetVoltage(int voltage)
+    public int SetVoltage(int voltage, bool force = false)
     {
 
         int stock = GetStockVoltage();
@@ -358,8 +405,9 @@ public class NvidiaGpuControl : IGpuControl
         // Stock selection (or out of range) means true default: unlock, don't pin a value.
         if ((stock > 0 && voltage == stock) || voltage < MinVoltage || voltage > MaxVoltage) voltage = 0;
 
-        if (_lastVoltage == voltage) return 0;
+        if (!force && _lastVoltage == voltage) return 0;
         if (voltage > 1000) Logger.WriteLine($"SET GPU VOLTAGE: {voltage} mV is above the commonly tested 500-1000 mV range (slider max {MaxVoltage} mV), proceed with caution!");
+        if (voltage > 0 && voltage < LowVoltageWarnThreshold) Logger.WriteLine($"SET GPU VOLTAGE: {voltage} mV is below the commonly tested 500-1000 mV range and may be unstable on some silicon, stress-test before keeping it!");
 
         PhysicalGPU internalGpu = _internalGpu!;
         try
@@ -383,7 +431,7 @@ public class NvidiaGpuControl : IGpuControl
         catch (Exception ex)
         {
             Logger.WriteLine("SET GPU VOLTAGE: " + ex.Message);
-            return -1;
+            return ToNeedsAdminOrFail(ex);
         }
 
         _lastVoltage = voltage;
@@ -443,7 +491,7 @@ public class NvidiaGpuControl : IGpuControl
         catch (Exception ex)
         {
             Logger.WriteLine("SET GPU CLOCKS: " + ex.Message);
-            return -1;
+            return ToNeedsAdminOrFail(ex);
         }
 
         return 1;

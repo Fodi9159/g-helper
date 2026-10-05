@@ -229,6 +229,21 @@ public static class AppConfig
         timer.Start();
     }
 
+    // Immediate synchronous write, for crash-guard flags that must survive
+    // a crash/BSOD (the debounced Write() above can be lost on hard crash).
+    public static void Flush()
+    {
+        timer.Stop();
+        string jsonString;
+        lock (configLock) jsonString = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
+        try
+        {
+            WriteAtomic(configFile, jsonString);
+            SyncFallbackConfig();
+        }
+        catch (Exception ex) { Logger.WriteLine("Config flush failed: " + ex.Message); }
+    }
+
     public static void Set(string name, int value)
     {
         lock (configLock) config[name] = value;

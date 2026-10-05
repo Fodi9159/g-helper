@@ -98,6 +98,13 @@ namespace GHelper
             AppConfig.Set("start_count", startCount);
             Logger.WriteLine("Start Count: " + startCount);
 
+            // Crash guard for GPU voltage trials: 0 = running/dirty, 1 = clean exit.
+            // A crash/BSOD leaves 0 behind, so the next boot skips auto-apply.
+            if (AppConfig.Get("clean_shutdown", 1) == 0 && startCount > 1)
+                Logger.WriteLine("Unclean shutdown detected, GPU voltage auto-apply will be skipped until re-applied");
+            AppConfig.Set("clean_shutdown", 0);
+            AppConfig.Flush();
+
             acpi = new AsusACPI();
 
             if (!acpi.IsConnected() && AppConfig.IsASUS() && !AppConfig.IsDesktop())
@@ -230,6 +237,7 @@ namespace GHelper
 
         private static void SystemEvents_SessionEnding(object sender, SessionEndingEventArgs e)
         {
+            try { AppConfig.Set("clean_shutdown", 1); AppConfig.Flush(); } catch { }
             gpuControl.StandardModeFix();
             modeControl.ShutdownReset();
             BatteryControl.AutoBattery();
@@ -417,6 +425,7 @@ namespace GHelper
             if (e.Mode == PowerModes.Suspend)
             {
                 Logger.WriteLine("Power Mode Changed:" + e.Mode.ToString());
+                try { AppConfig.Set("clean_shutdown", 1); AppConfig.Flush(); } catch { }
                 gpuControl.StandardModeFix();
                 modeControl.ShutdownReset();
                 InputDispatcher.ShutdownStatusLed();
@@ -496,6 +505,7 @@ namespace GHelper
 
         static void OnExit(object sender, EventArgs e)
         {
+            try { AppConfig.Set("clean_shutdown", 1); AppConfig.Flush(); } catch { }
             if (trayIcon is not null)
             {
                 trayIcon.Visible = false;

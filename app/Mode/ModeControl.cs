@@ -545,7 +545,8 @@ namespace GHelper.Mode
                 {
                     int statusClocks = nvControl.SetClocks(core, memory);
                     int statusLimit = nvControl.SetMaxGPUClock(clock_limit);
-                    if ((statusLimit != 0 || statusClocks != 0) && launchAsAdmin) ProcessHelper.RunAsAdmin("gpu");
+                    if ((statusLimit == NvidiaGpuControl.NeedsAdmin || statusClocks == NvidiaGpuControl.NeedsAdmin) && launchAsAdmin) ProcessHelper.RunAsAdmin("gpu");
+                    if (statusClocks == -1 || statusLimit == -1) Logger.WriteLine("Clocks: apply failed, not escalating (already admin or non-permission error)");
                 }
                 catch (Exception ex)
                 {
@@ -556,16 +557,51 @@ namespace GHelper.Mode
             });
         }
 
-        public void SetGPUVoltage(bool launchAsAdmin = true, bool reset = false)
+        // Crash guard: a saved voltage that was never confirmed stable, or a
+        // previous unclean shutdown, must not be blindly re-applied on boot /
+        // mode switch. Manual (force) applies from the UI always go through.
+        private static bool ShouldSkipVoltageAutoApply(int confirmedVoltage)
+        {
+            if (confirmedVoltage < 0) return false;
+
+            int pending = AppConfig.GetMode("gpu_voltage_pending", -1);
+            if (pending >= 0 && pending != confirmedVoltage)
+            {
+                Logger.WriteLine($"Voltage: skipping auto-apply, unconfirmed trial {pending} mV was never confirmed (previous run may have crashed)");
+                return true;
+            }
+
+            // clean_shutdown: 1 = last exit clean, 0 = running/dirty.
+            // Set to 0 on startup, 1 on clean exit. A crash/BSOD leaves 0 behind.
+            if (AppConfig.Get("clean_shutdown", 1) == 0 && AppConfig.Get("start_count", 1) > 1)
+            {
+                Logger.WriteLine("Voltage: skipping auto-apply after unclean shutdown, keeping stock until user re-applies");
+                return true;
+            }
+
+            return false;
+        }
+
+        public void SetGPUVoltage(bool launchAsAdmin = true, bool reset = false, bool force = false)
         {
             Task.Run(() =>
             {
 
-                int voltage = AppConfig.GetMode("gpu_voltage");
+                int voltage;
 
                 if (reset) voltage = 0;
+                else if (force)
+                {
+                    // Manual trial from the UI: prefer the pending trial value
+                    // written by CommitVoltage, fall back to confirmed value.
+                    int pending = AppConfig.GetMode("gpu_voltage_pending", -1);
+                    voltage = pending >= 0 ? pending : AppConfig.GetMode("gpu_voltage");
+                }
+                else voltage = AppConfig.GetMode("gpu_voltage");
 
-                if (voltage == -1) return;
+                if (reset) { /* unlock below */ }
+                else if (voltage == -1) return;
+                else if (!force && !reset && ShouldSkipVoltageAutoApply(voltage)) return;
 
                 if (Program.acpi.DeviceGet(AsusACPI.GPUEco) == 1) { Logger.WriteLine("Voltage: Eco"); return; }
                 if (HardwareControl.GpuControl is null) { Logger.WriteLine("Voltage: NoGPUControl"); return; }
@@ -574,8 +610,9 @@ namespace GHelper.Mode
                 NvidiaGpuControl nvControl = (NvidiaGpuControl)HardwareControl.GpuControl;
                 try
                 {
-                    int status = nvControl.SetVoltage(voltage);
-                    if (status != 0 && launchAsAdmin) ProcessHelper.RunAsAdmin("gpu");
+                    int status = nvControl.SetVoltage(voltage, force);
+                    if (status == NvidiaGpuControl.NeedsAdmin && launchAsAdmin) ProcessHelper.RunAsAdmin("gpu");
+                    if (status == -1) Logger.WriteLine("Voltage: apply failed, not escalating (already admin or non-permission error)");
                 }
                 catch (Exception ex)
                 {

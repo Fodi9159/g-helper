@@ -36,6 +36,8 @@ namespace GHelper
         NvidiaGpuControl? nvControl = null;
         int _gpuStockVoltage = -1; // factory P0 voltage in mV, -1 when unreadable
         bool _gpuVoltageLocked; // true when driver is pinned at a voltage (not stock default)
+        CancellationTokenSource? _voltageConfirmCts; // trial confirm timer, cancelled on new trial/default
+        const int VoltageConfirmMs = 30000; // trial must survive this long to become the saved value
         ModeControl modeControl = Program.modeControl;
 
         FanSensorControl fanSensorControl;
@@ -543,7 +545,7 @@ namespace GHelper
         void ApplyGpuVoltage()
         {
             CommitVoltage();
-            modeControl.SetGPUVoltage(true);
+            modeControl.SetGPUVoltage(true, false, true);
         }
 
         void ApplyHysteresis() => Program.acpi.SetFanHysteresis(trackHysteresisUp.Value, trackHysteresisDown.Value);
@@ -742,21 +744,25 @@ namespace GHelper
         private void TrackGPUVoltage_MouseUp(object? sender, MouseEventArgs e)
         {
             CommitVoltage();
-            modeControl.SetGPUVoltage(true);
+            modeControl.SetGPUVoltage(true, false, true);
         }
 
         private void TrackGPUVoltage_KeyUp(object? sender, KeyEventArgs e)
         {
             CommitVoltage();
-            modeControl.SetGPUVoltage(true);
+            modeControl.SetGPUVoltage(true, false, true);
         }
 
         private void ButtonGPUVoltageDefault_Click(object? sender, EventArgs e)
         {
+            CancelPendingVoltageConfirm();
             AppConfig.RemoveMode("gpu_voltage");
+            AppConfig.RemoveMode("gpu_voltage_pending");
+            AppConfig.RemoveMode("gpu_voltage_pending_time");
+            AppConfig.Flush();
             _gpuVoltageLocked = false;
             VisualiseGPUSettings();
-            modeControl.SetGPUVoltage(true, true);
+            modeControl.SetGPUVoltage(true, true, true);
             // Live-voltage read can block on NVAPI: fetch off the UI thread,
             // then park the thumb without re-applying.
             var nv = nvControl;
@@ -834,6 +840,27 @@ namespace GHelper
                     int memory = AppConfig.GetMode("gpu_memory");
                     int clock_limit = AppConfig.GetMode("gpu_clock_limit");
                     int voltage = AppConfig.GetMode("gpu_voltage");
+
+                    // Expire stale trials: a pending value older than 24h was
+                    // never confirmed (crash or app closed mid-trial). Drop it
+                    // so it doesn't block auto-apply forever.
+                    int pending = AppConfig.GetMode("gpu_voltage_pending", -1);
+                    if (pending >= 0 && pending != voltage)
+                    {
+                        int pendingTime = AppConfig.GetMode("gpu_voltage_pending_time", -1);
+                        long now = DateTimeOffset.Now.ToUnixTimeSeconds();
+                        if (pendingTime < 0 || now - pendingTime > 24 * 3600)
+                        {
+                            Logger.WriteLine($"Voltage: clearing stale unconfirmed trial {pending} mV");
+                            AppConfig.RemoveMode("gpu_voltage_pending");
+                            AppConfig.RemoveMode("gpu_voltage_pending_time");
+                            AppConfig.Flush();
+                        }
+                        else
+                        {
+                            Logger.WriteLine($"Voltage: unconfirmed trial {pending} mV pending, showing confirmed/driver value");
+                        }
+                    }
 
                     if (gpu_boost < 0) gpu_boost = AsusACPI.MaxGPUBoost;
                     if (gpu_temp < 0) gpu_temp = AsusACPI.MaxGPUTemp;
@@ -1034,13 +1061,73 @@ namespace GHelper
             int voltage = NvidiaGpuControl.SnapVoltage(trackGPUVoltage.Value);
             if (trackGPUVoltage.Value != voltage) trackGPUVoltage.Value = voltage;
             _gpuVoltageLocked = _gpuStockVoltage <= 0 || voltage != _gpuStockVoltage;
-            // Stock position means true default: clear the saved value instead
-            // of storing the stock number (SetVoltage unlocks either way).
+            // Stock position means true default: clear both the confirmed value
+            // and any pending trial instead of storing the stock number
+            // (SetVoltage unlocks either way).
             if (_gpuStockVoltage > 0 && voltage == _gpuStockVoltage)
+            {
+                CancelPendingVoltageConfirm();
                 AppConfig.RemoveMode("gpu_voltage");
+                AppConfig.RemoveMode("gpu_voltage_pending");
+                AppConfig.RemoveMode("gpu_voltage_pending_time");
+                AppConfig.Flush();
+            }
             else
-                AppConfig.SetMode("gpu_voltage", voltage);
+            {
+                // Trial-first: only the pending value is saved now. It becomes
+                // the confirmed gpu_voltage after surviving VoltageConfirmMs
+                // without a crash (see ConfirmVoltageAfterDelay). A crash
+                // before confirm leaves pending != confirmed, so the next
+                // boot skips auto-apply instead of boot-looping.
+                AppConfig.SetMode("gpu_voltage_pending", voltage);
+                AppConfig.SetMode("gpu_voltage_pending_time", (int)DateTimeOffset.Now.ToUnixTimeSeconds());
+                AppConfig.Flush();
+                ScheduleVoltageConfirm(voltage);
+            }
             VisualiseGPUSettings();
+        }
+
+        private void ScheduleVoltageConfirm(int trialVoltage)
+        {
+            CancelPendingVoltageConfirm();
+            int capturedMode = Modes.GetCurrent();
+            var cts = new CancellationTokenSource();
+            _voltageConfirmCts = cts;
+            Task.Delay(VoltageConfirmMs, cts.Token).ContinueWith(t =>
+            {
+                if (t.IsCanceled) return;
+                try
+                {
+                    var nv = nvControl;
+                    if (nv is null) return;
+                    var (locked, mv) = nv.GetVoltageLock();
+                    string confirmedKey = "gpu_voltage_" + capturedMode;
+                    string pendingKey = "gpu_voltage_pending_" + capturedMode;
+                    string pendingTimeKey = "gpu_voltage_pending_time_" + capturedMode;
+                    if (locked && Math.Abs(mv - trialVoltage) <= 5)
+                    {
+                        AppConfig.Set(confirmedKey, trialVoltage);
+                        AppConfig.Remove(pendingKey);
+                        AppConfig.Remove(pendingTimeKey);
+                        AppConfig.Flush();
+                        Logger.WriteLine($"Voltage: trial {trialVoltage} mV survived {VoltageConfirmMs / 1000}s, confirmed as saved value");
+                    }
+                    else
+                    {
+                        Logger.WriteLine($"Voltage: trial {trialVoltage} mV not active after {VoltageConfirmMs / 1000}s (locked={locked} mv={mv}), keeping previous saved value");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.WriteLine("Voltage confirm: " + ex.Message);
+                }
+            }, TaskScheduler.Default);
+        }
+
+        private void CancelPendingVoltageConfirm()
+        {
+            try { _voltageConfirmCts?.Cancel(); } catch { }
+            _voltageConfirmCts = null;
         }
 
         private void trackGPU_Scroll(object? sender, EventArgs e)
@@ -1664,6 +1751,8 @@ namespace GHelper
 
                 AppConfig.RemoveMode("gpu_power");
                 AppConfig.RemoveMode("gpu_voltage");
+                AppConfig.RemoveMode("gpu_voltage_pending");
+                AppConfig.RemoveMode("gpu_voltage_pending_time");
                 AppConfig.RemoveMode("gpu_clock_limit");
                 AppConfig.RemoveMode("gpu_core");
                 AppConfig.RemoveMode("gpu_memory");
@@ -1671,7 +1760,7 @@ namespace GHelper
                 InitGPUPower();
 
                 VisualiseGPUSettings();
-                modeControl.SetGPUVoltage(true, true);
+                modeControl.SetGPUVoltage(true, true, true);
                 modeControl.SetGPUClocks(true, true);
                 modeControl.SetGPUPower();
             }
