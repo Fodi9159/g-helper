@@ -1,0 +1,75 @@
+name: Fork patch release
+
+# One-click manual release for fork-only changes (own patches on top of the
+# last upstream sync). The scheduled sync workflow only publishes when
+# upstream cuts a new release, so use this to ship fork work in between.
+#
+# Actions tab -> "Fork patch release" -> Run workflow -> enter tag
+# (e.g. v0.285.1, following the v0.269.1 / v0.274.1 precedent).
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v0.285.1)'
+        required: true
+        default: 'v0.285.1'
+      title:
+        description: 'Release title (blank = "G-Helper <tag> (fork patch)")'
+        required: false
+        default: ''
+      notes:
+        description: 'Release notes (markdown)'
+        required: false
+        default: 'Fork patch release with own changes on top of the last upstream sync.'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Abort if release already exists
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ inputs.tag }}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release ${{ inputs.tag }} already exists — aborting"
+            exit 1
+          fi
+
+      - name: Build self-contained single exe
+        shell: bash
+        run: dotnet publish app/GHelper.sln --configuration Release --runtime win-x64 -p:PublishSingleFile=true --self-contained
+
+      - name: Package ZIP
+        shell: powershell
+        run: |
+          $exe = Get-ChildItem "app\bin\x64\Release" -Recurse -Filter "GHelper.exe" | Where-Object FullName -match "publish" | Select-Object -First 1
+          Compress-Archive -Path $exe.FullName -DestinationPath "GHelper.zip" -Force
+          Write-Host "Packed: $($exe.FullName)"
+
+      - name: Create release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ inputs.tag }}"
+          TITLE="${{ inputs.title }}"
+          if [ -z "$TITLE" ]; then TITLE="G-Helper $TAG (fork patch)"; fi
+          gh release create "$TAG" GHelper.zip \
+            --repo "${{ github.repository }}" \
+            --title "$TITLE" \
+            --notes "${{ inputs.notes }}"
