@@ -36,8 +36,6 @@ namespace GHelper
         NvidiaGpuControl? nvControl = null;
         int _gpuStockVoltage = -1; // factory P0 voltage in mV, -1 when unreadable
         bool _gpuVoltageLocked; // true when driver is pinned at a voltage (not stock default)
-        CancellationTokenSource? _voltageConfirmCts; // trial confirm timer, cancelled on new trial/default
-        const int VoltageConfirmMs = 30000; // trial must survive this long to become the saved value
         ModeControl modeControl = Program.modeControl;
 
         FanSensorControl fanSensorControl;
@@ -469,18 +467,29 @@ namespace GHelper
             bool editing = false;
             bool done = false;
 
-            void EndEdit(bool applyEdit)
+            void EndEdit(bool applyEdit, bool forceApply = false)
             {
                 if (done) return; // commit only once (Enter followed by LostFocus)
                 done = true;
 
                 int value = track.Value;
-                if (applyEdit && int.TryParse(edit.Text, out int parsed))
-                    value = Math.Clamp(parsed, track.Minimum, track.Maximum);
-
-                if (value != track.Value)
+                bool parsedOk = false;
+                if (applyEdit && int.TryParse(edit.Text.Trim(), out int parsed))
                 {
+                    parsedOk = true;
+                    value = Math.Clamp(parsed, track.Minimum, track.Maximum);
+                }
+
+                bool changed = value != track.Value;
+                if (changed)
                     track.Value = value;
+
+                // Explicit Enter with a valid number forces commit+apply even when
+                // the value is unchanged, so re-typing the current limit (e.g. 670
+                // when the slider already sits at 670) still re-applies it.
+                // LostFocus without a change stays a no-op; invalid text never applies.
+                if (changed || (forceApply && parsedOk))
+                {
                     commit(track, EventArgs.Empty);
                     apply?.Invoke();
                 }
@@ -510,12 +519,15 @@ namespace GHelper
 
             edit.KeyDown += (sender, e) =>
             {
-                if (e.KeyCode == Keys.Enter) { e.Handled = e.SuppressKeyPress = true; EndEdit(true); }
+                if (e.KeyCode == Keys.Enter) { e.Handled = e.SuppressKeyPress = true; EndEdit(true, true); }
                 if (e.KeyCode == Keys.Escape) { e.Handled = e.SuppressKeyPress = true; EndEdit(false); }
                 if (e.KeyCode == Keys.Up || e.KeyCode == Keys.Down)
                 {
                     e.Handled = e.SuppressKeyPress = true;
-                    edit.Text = (track.Value + (e.KeyCode == Keys.Up ? 1 : -1)).ToString();
+                    int baseValue = track.Value;
+                    if (int.TryParse(edit.Text.Trim(), out int current))
+                        baseValue = current;
+                    edit.Text = (baseValue + (e.KeyCode == Keys.Up ? 1 : -1)).ToString();
                 }
             };
 
@@ -755,7 +767,6 @@ namespace GHelper
 
         private void ButtonGPUVoltageDefault_Click(object? sender, EventArgs e)
         {
-            CancelPendingVoltageConfirm();
             AppConfig.RemoveMode("gpu_voltage");
             AppConfig.RemoveMode("gpu_voltage_pending");
             AppConfig.RemoveMode("gpu_voltage_pending_time");
@@ -841,25 +852,16 @@ namespace GHelper
                     int clock_limit = AppConfig.GetMode("gpu_clock_limit");
                     int voltage = AppConfig.GetMode("gpu_voltage");
 
-                    // Expire stale trials: a pending value older than 24h was
-                    // never confirmed (crash or app closed mid-trial). Drop it
-                    // so it doesn't block auto-apply forever.
+                    // Migration: drop any leftover unconfirmed trial from older
+                    // versions that used a 30s confirm delay. Voltage is now
+                    // saved immediately, so pending must never block auto-apply.
                     int pending = AppConfig.GetMode("gpu_voltage_pending", -1);
                     if (pending >= 0 && pending != voltage)
                     {
-                        int pendingTime = AppConfig.GetMode("gpu_voltage_pending_time", -1);
-                        long now = DateTimeOffset.Now.ToUnixTimeSeconds();
-                        if (pendingTime < 0 || now - pendingTime > 24 * 3600)
-                        {
-                            Logger.WriteLine($"Voltage: clearing stale unconfirmed trial {pending} mV");
-                            AppConfig.RemoveMode("gpu_voltage_pending");
-                            AppConfig.RemoveMode("gpu_voltage_pending_time");
-                            AppConfig.Flush();
-                        }
-                        else
-                        {
-                            Logger.WriteLine($"Voltage: unconfirmed trial {pending} mV pending, showing confirmed/driver value");
-                        }
+                        Logger.WriteLine($"Voltage: clearing leftover unconfirmed trial {pending} mV");
+                        AppConfig.RemoveMode("gpu_voltage_pending");
+                        AppConfig.RemoveMode("gpu_voltage_pending_time");
+                        AppConfig.Flush();
                     }
 
                     if (gpu_boost < 0) gpu_boost = AsusACPI.MaxGPUBoost;
@@ -1066,7 +1068,6 @@ namespace GHelper
             // (SetVoltage unlocks either way).
             if (_gpuStockVoltage > 0 && voltage == _gpuStockVoltage)
             {
-                CancelPendingVoltageConfirm();
                 AppConfig.RemoveMode("gpu_voltage");
                 AppConfig.RemoveMode("gpu_voltage_pending");
                 AppConfig.RemoveMode("gpu_voltage_pending_time");
@@ -1074,60 +1075,15 @@ namespace GHelper
             }
             else
             {
-                // Trial-first: only the pending value is saved now. It becomes
-                // the confirmed gpu_voltage after surviving VoltageConfirmMs
-                // without a crash (see ConfirmVoltageAfterDelay). A crash
-                // before confirm leaves pending != confirmed, so the next
-                // boot skips auto-apply instead of boot-looping.
-                AppConfig.SetMode("gpu_voltage_pending", voltage);
-                AppConfig.SetMode("gpu_voltage_pending_time", (int)DateTimeOffset.Now.ToUnixTimeSeconds());
+                // Save immediately: no 30s trial delay. Crash protection is
+                // still provided by the clean_shutdown guard in
+                // ShouldSkipVoltageAutoApply (unclean exit skips next boot).
+                AppConfig.SetMode("gpu_voltage", voltage);
+                AppConfig.RemoveMode("gpu_voltage_pending");
+                AppConfig.RemoveMode("gpu_voltage_pending_time");
                 AppConfig.Flush();
-                ScheduleVoltageConfirm(voltage);
             }
             VisualiseGPUSettings();
-        }
-
-        private void ScheduleVoltageConfirm(int trialVoltage)
-        {
-            CancelPendingVoltageConfirm();
-            int capturedMode = Modes.GetCurrent();
-            var cts = new CancellationTokenSource();
-            _voltageConfirmCts = cts;
-            Task.Delay(VoltageConfirmMs, cts.Token).ContinueWith(t =>
-            {
-                if (t.IsCanceled) return;
-                try
-                {
-                    var nv = nvControl;
-                    if (nv is null) return;
-                    var (locked, mv) = nv.GetVoltageLock();
-                    string confirmedKey = "gpu_voltage_" + capturedMode;
-                    string pendingKey = "gpu_voltage_pending_" + capturedMode;
-                    string pendingTimeKey = "gpu_voltage_pending_time_" + capturedMode;
-                    if (locked && Math.Abs(mv - trialVoltage) <= 5)
-                    {
-                        AppConfig.Set(confirmedKey, trialVoltage);
-                        AppConfig.Remove(pendingKey);
-                        AppConfig.Remove(pendingTimeKey);
-                        AppConfig.Flush();
-                        Logger.WriteLine($"Voltage: trial {trialVoltage} mV survived {VoltageConfirmMs / 1000}s, confirmed as saved value");
-                    }
-                    else
-                    {
-                        Logger.WriteLine($"Voltage: trial {trialVoltage} mV not active after {VoltageConfirmMs / 1000}s (locked={locked} mv={mv}), keeping previous saved value");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logger.WriteLine("Voltage confirm: " + ex.Message);
-                }
-            }, TaskScheduler.Default);
-        }
-
-        private void CancelPendingVoltageConfirm()
-        {
-            try { _voltageConfirmCts?.Cancel(); } catch { }
-            _voltageConfirmCts = null;
         }
 
         private void trackGPU_Scroll(object? sender, EventArgs e)

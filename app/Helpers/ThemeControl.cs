@@ -18,7 +18,7 @@ namespace GHelper.Helpers
         private const uint SMTO_ABORTIFHUNG = 0x0002;
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
-        private static extern bool SystemParametersInfo(uint uiAction, uint uiParam, uint pvParam, uint fWinIni);
+        private static extern bool SystemParametersInfo(uint uiAction, uint uiParam, IntPtr pvParam, uint fWinIni);
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);
@@ -29,7 +29,8 @@ namespace GHelper.Helpers
             {
                 using RegistryKey? key = Registry.CurrentUser.OpenSubKey(PersonalizeKey);
                 object? value = key?.GetValue("AppsUseLightTheme");
-                return value is null || (int)value <= 0;
+                if (value is null) return false;
+                return Convert.ToInt32(value) <= 0;
             }
             catch (Exception ex)
             {
@@ -86,7 +87,7 @@ namespace GHelper.Helpers
                 }
 
                 // Toggle Windows mode the same way the Settings app does
-                SystemParametersInfo(SPI_SETSYSTEMDARKMODE, (uint)value, 0, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+                SystemParametersInfo(SPI_SETSYSTEMDARKMODE, (uint)value, IntPtr.Zero, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
             }
 
             // Broadcast so apps re-read the theme; outside the lock so a rapid second
