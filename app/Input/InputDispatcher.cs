@@ -792,6 +792,9 @@ namespace GHelper.Input
                     Task.Run(() => ThemeControl.SetDark(dark));
                     Program.settingsForm.BeginInvoke(Program.settingsForm.VisualiseTheme);
                     break;
+                case "touchpad":
+                    ToggleTouchpadEvent(true);
+                    break;
                 default:
                     break;
             }

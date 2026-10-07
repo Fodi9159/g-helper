@@ -533,6 +533,7 @@ namespace GHelper.Peripherals
             DetectMouse(new MD200());
             DetectMouse(new BalteusQi());
             DetectMouse(new Balteus());
+            DetectMouse(new BulwarkDock());
         }
 
         [MethodImpl(MethodImplOptions.Synchronized)]
@@ -586,6 +587,7 @@ namespace GHelper.Peripherals
             DetectHeadset(new CetraSpeedNova());
             DetectHeadset(new Clavis());
             DetectHeadset(new CetraRgb());
+            DetectHeadset(new StrixGo24());
         }
 
         public static void DetectHeadset(AsusHeadset hs)

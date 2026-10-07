@@ -48,6 +48,7 @@ namespace GHelper
               {"brightness_up", Properties.Strings.BrightnessUp},
               {"visual", Properties.Strings.VisualMode},
               {"boost_toggle", Properties.Strings.CPUBoost},
+              {"touchpad", Properties.Strings.ToggleTouchpad},
               {"touchscreen", Properties.Strings.ToggleTouchscreen },
               {"micmute", Properties.Strings.MuteMic},
               {"ghelper", Properties.Strings.OpenGHelper},
