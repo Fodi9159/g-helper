@@ -785,6 +785,9 @@ Do you still want to continue?</value>
   <data name="ReadLimits" xml:space="preserve">
     <value>Read Limits</value>
   </data>
+  <data name="Reapply" xml:space="preserve">
+    <value>Reapply</value>
+  </data>
   <data name="Reset" xml:space="preserve">
     <value>Reset</value>
   </data>

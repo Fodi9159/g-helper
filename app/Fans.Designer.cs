@@ -177,6 +177,8 @@ namespace GHelper
             trackGPUVoltage = new RTrackBar();
             labelGPUVoltageTitle = new Label();
             buttonGPUVoltageDefault = new RButton();
+            panelGPUReapply = new Panel();
+            buttonGPUReapply = new RButton();
             panelTitleGPU = new Panel();
             pictureGPU = new PictureBox();
             labelGPU = new Label();
@@ -256,6 +258,7 @@ namespace GHelper
             ((System.ComponentModel.ISupportInitialize)trackGPUClockLimit).BeginInit();
             panelGPUVoltage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)trackGPUVoltage).BeginInit();
+            panelGPUReapply.SuspendLayout();
             panelTitleGPU.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureGPU).BeginInit();
             panelNav.SuspendLayout();
@@ -1672,6 +1675,7 @@ namespace GHelper
             // panelGPU
             // 
             panelGPU.AutoSize = true;
+            panelGPU.Controls.Add(panelGPUReapply);
             panelGPU.Controls.Add(panelGPUTemp);
             panelGPU.Controls.Add(panelGPUBoost);
             panelGPU.Controls.Add(panelGPUPower);
@@ -2047,6 +2051,35 @@ namespace GHelper
             buttonGPUVoltageDefault.TabIndex = 30;
             buttonGPUVoltageDefault.Text = "Reset";
             // 
+            // panelGPUReapply
+            // 
+            panelGPUReapply.AutoSize = true;
+            panelGPUReapply.Controls.Add(buttonGPUReapply);
+            panelGPUReapply.Dock = DockStyle.Top;
+            panelGPUReapply.Location = new Point(0, 804);
+            panelGPUReapply.Name = "panelGPUReapply";
+            panelGPUReapply.Padding = new Padding(15);
+            panelGPUReapply.Size = new Size(520, 80);
+            panelGPUReapply.TabIndex = 7;
+            // 
+            // buttonGPUReapply
+            // 
+            buttonGPUReapply.Activated = false;
+            buttonGPUReapply.BackColor = SystemColors.ControlLight;
+            buttonGPUReapply.BorderColor = Color.Transparent;
+            buttonGPUReapply.BorderRadius = 2;
+            buttonGPUReapply.Dock = DockStyle.Top;
+            buttonGPUReapply.FlatStyle = FlatStyle.Flat;
+            buttonGPUReapply.Location = new Point(15, 15);
+            buttonGPUReapply.Margin = new Padding(4, 2, 15, 15);
+            buttonGPUReapply.Name = "buttonGPUReapply";
+            buttonGPUReapply.Secondary = true;
+            buttonGPUReapply.Size = new Size(490, 50);
+            buttonGPUReapply.TabIndex = 50;
+            buttonGPUReapply.Text = "Reapply";
+            buttonGPUReapply.TextImageRelation = TextImageRelation.ImageBeforeText;
+            buttonGPUReapply.UseVisualStyleBackColor = false;
+            // 
             // panelTitleGPU
             // 
             panelTitleGPU.AutoSize = true;
@@ -2290,6 +2323,7 @@ namespace GHelper
             panelGPUVoltage.ResumeLayout(false);
             panelGPUVoltage.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)trackGPUVoltage).EndInit();
+            panelGPUReapply.ResumeLayout(false);
             panelTitleGPU.ResumeLayout(false);
             panelTitleGPU.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)pictureGPU).EndInit();
@@ -2411,6 +2445,8 @@ namespace GHelper
         private RTrackBar trackGPUVoltage;
         private Label labelGPUVoltageTitle;
         private RButton buttonGPUVoltageDefault;
+        private Panel panelGPUReapply;
+        private RButton buttonGPUReapply;
         private RButton buttonCalibrate;
         private Panel panelSlow;
         private Label labelSlow;

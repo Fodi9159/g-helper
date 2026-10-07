@@ -2322,6 +2322,15 @@ namespace GHelper.Properties {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to Reapply.
+        /// </summary>
+        internal static string Reapply {
+            get {
+                return ResourceManager.GetString("Reapply", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Reset.
         /// </summary>
         internal static string Reset {

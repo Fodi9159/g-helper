@@ -238,6 +238,8 @@ namespace GHelper
             trackGPUClockLimit.KeyUp += TrackGPUClocks_KeyUp;
             trackGPUVoltage.KeyUp += TrackGPUVoltage_KeyUp;
             buttonGPUVoltageDefault.Click += ButtonGPUVoltageDefault_Click;
+            buttonGPUReapply.Text = Properties.Strings.Reapply;
+            buttonGPUReapply.Click += ButtonGPUReapply_Click;
 
             trackGPUBoost.MouseUp += TrackGPU_MouseUp;
             trackGPUTemp.MouseUp += TrackGPU_MouseUp;
@@ -791,6 +793,31 @@ namespace GHelper
                 }
                 catch (ObjectDisposedException) { }
             });
+        }
+
+        private void ButtonGPUReapply_Click(object? sender, EventArgs e)
+        {
+            buttonGPUReapply.Enabled = false;
+            try
+            {
+                CommitClockLimit();
+                CommitGpuOffsets();
+                CommitVoltage();
+                AppConfig.SetMode("gpu_boost", trackGPUBoost.Value);
+                AppConfig.SetMode("gpu_temp", trackGPUTemp.Value);
+                if (isGPUPower) AppConfig.SetMode("gpu_power", trackGPUPower.Value);
+
+                modeControl.SetGPUPower();
+                modeControl.SetGPUClocks(true);
+                modeControl.SetGPUVoltage(true, false, true);
+            }
+            finally
+            {
+                Task.Delay(1000).ContinueWith(_ =>
+                {
+                    try { BeginInvoke(delegate { buttonGPUReapply.Enabled = true; }); } catch { }
+                });
+            }
         }
 
         private void InitGPUPower()
