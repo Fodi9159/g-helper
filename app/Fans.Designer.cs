@@ -179,6 +179,8 @@ namespace GHelper
             buttonGPUVoltageDefault = new RButton();
             panelGPUReapply = new Panel();
             buttonGPUReapply = new RButton();
+            panelApplyGPU = new Panel();
+            checkApplyGPU = new RCheckBox();
             panelTitleGPU = new Panel();
             pictureGPU = new PictureBox();
             labelGPU = new Label();
@@ -259,6 +261,7 @@ namespace GHelper
             panelGPUVoltage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)trackGPUVoltage).BeginInit();
             panelGPUReapply.SuspendLayout();
+            panelApplyGPU.SuspendLayout();
             panelTitleGPU.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureGPU).BeginInit();
             panelNav.SuspendLayout();
@@ -1675,6 +1678,7 @@ namespace GHelper
             // panelGPU
             // 
             panelGPU.AutoSize = true;
+            panelGPU.Controls.Add(panelApplyGPU);
             panelGPU.Controls.Add(panelGPUReapply);
             panelGPU.Controls.Add(panelGPUTemp);
             panelGPU.Controls.Add(panelGPUBoost);
@@ -2080,6 +2084,30 @@ namespace GHelper
             buttonGPUReapply.TextImageRelation = TextImageRelation.ImageBeforeText;
             buttonGPUReapply.UseVisualStyleBackColor = false;
             // 
+            // panelApplyGPU
+            // 
+            panelApplyGPU.AutoSize = true;
+            panelApplyGPU.Controls.Add(checkApplyGPU);
+            panelApplyGPU.Dock = DockStyle.Top;
+            panelApplyGPU.Location = new Point(0, 884);
+            panelApplyGPU.Name = "panelApplyGPU";
+            panelApplyGPU.Padding = new Padding(15);
+            panelApplyGPU.Size = new Size(520, 76);
+            panelApplyGPU.TabIndex = 8;
+            // 
+            // checkApplyGPU
+            // 
+            checkApplyGPU.BackColor = SystemColors.ControlLight;
+            checkApplyGPU.Dock = DockStyle.Top;
+            checkApplyGPU.Location = new Point(15, 15);
+            checkApplyGPU.Margin = new Padding(0);
+            checkApplyGPU.Name = "checkApplyGPU";
+            checkApplyGPU.Padding = new Padding(16, 6, 16, 6);
+            checkApplyGPU.Size = new Size(490, 46);
+            checkApplyGPU.TabIndex = 51;
+            checkApplyGPU.Text = "Apply GPU Settings after Reboot";
+            checkApplyGPU.UseVisualStyleBackColor = false;
+            // 
             // panelTitleGPU
             // 
             panelTitleGPU.AutoSize = true;
@@ -2324,6 +2352,7 @@ namespace GHelper
             panelGPUVoltage.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)trackGPUVoltage).EndInit();
             panelGPUReapply.ResumeLayout(false);
+            panelApplyGPU.ResumeLayout(false);
             panelTitleGPU.ResumeLayout(false);
             panelTitleGPU.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)pictureGPU).EndInit();
@@ -2447,6 +2476,8 @@ namespace GHelper
         private RButton buttonGPUVoltageDefault;
         private Panel panelGPUReapply;
         private RButton buttonGPUReapply;
+        private Panel panelApplyGPU;
+        private RCheckBox checkApplyGPU;
         private RButton buttonCalibrate;
         private Panel panelSlow;
         private Label labelSlow;

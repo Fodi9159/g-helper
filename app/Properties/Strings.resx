@@ -171,6 +171,9 @@
   <data name="ApplyFanCurve" xml:space="preserve">
     <value>Apply Fan Curve</value>
   </data>
+  <data name="ApplyGPUSettings" xml:space="preserve">
+    <value>Apply GPU Settings after Reboot</value>
+  </data>
   <data name="ApplyPowerLimits" xml:space="preserve">
     <value>Apply Power Limits</value>
   </data>

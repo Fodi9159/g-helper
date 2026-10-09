@@ -78,7 +78,7 @@ namespace GHelper.Mode
             if (reapplyTimer is null)
             {
                 int reapplyTime = AppConfig.Get("reapply_time",
-                    (IsReapplyTempRequired() || AppConfig.IsApplyPower()) ? 5 : 0);
+                    (IsReapplyTempRequired() || AppConfig.IsApplyPower() || AppConfig.IsApplyGPU()) ? 5 : 0);
                 if (reapplyTime > 0)
                 {
                     reapplyTimer = new System.Timers.Timer(reapplyTime * 1000);
@@ -109,46 +109,72 @@ namespace GHelper.Mode
         // unapplied.
         public void ReapplyIfDrifted()
         {
-            if (!AppConfig.IsApplyPower()) return;
+            bool applyPower = AppConfig.IsApplyPower();
+            bool applyGpu = AppConfig.IsApplyGPU();
+            if (!applyPower && !applyGpu) return;
 
-            var smu = GetSmu();
-            PowerLimits? live = null;
-            if (smu != null)
+            if (applyPower)
             {
-                try { live = smu.GetPowerLimits(log: false); }
-                catch (Exception ex) { Logger.WriteLine("Conditional reapply: live limits read failed: " + ex.Message); }
+                var smu = GetSmu();
+                PowerLimits? live = null;
+                if (smu != null)
+                {
+                    try { live = smu.GetPowerLimits(log: false); }
+                    catch (Exception ex) { Logger.WriteLine("Conditional reapply: live limits read failed: " + ex.Message); }
+                }
+
+                int cpuTemp = AppConfig.GetMode("cpu_temp");
+                if (cpuTemp >= CpuInfo.MinTemp && cpuTemp <= CpuInfo.DefaultTemp && !LiveTempMatches(live, cpuTemp))
+                    SetCPUTemp(cpuTemp);
+
+                int limit_total = AppConfig.GetMode("limit_total");
+                int limit_slow = AppConfig.GetMode("limit_slow", limit_total);
+                if (limit_slow < 0) limit_slow = limit_total;
+                int limit_fast = AppConfig.GetMode("limit_fast", limit_slow);
+
+                // The SMU PM-table read is the authority: on models without the
+                // ASUS WMI readback IDs (e.g. TUF A15), a WMI-based check would
+                // report "unverifiable" every tick and force a write, defeating
+                // the drift check. Only fall back to the unconditional write when
+                // the live read itself is unavailable.
+                bool limitsMatch = live is not null
+                    && limit_total >= AsusACPI.MinTotal && limit_total <= AsusACPI.MaxTotal
+                    && Math.Abs(live.Stapm - limit_total) <= DriftTolerance
+                    && Math.Abs(live.Slow - limit_slow) <= DriftTolerance
+                    && Math.Abs(live.Fast - limit_fast) <= DriftTolerance;
+
+                if (!limitsMatch)
+                {
+                    SetRyzenPower();
+                    SetPower();
+                }
             }
 
-            int cpuTemp = AppConfig.GetMode("cpu_temp");
-            if (cpuTemp >= CpuInfo.MinTemp && cpuTemp <= CpuInfo.DefaultTemp && !LiveTempMatches(live, cpuTemp))
-                SetCPUTemp(cpuTemp);
-
-            int limit_total = AppConfig.GetMode("limit_total");
-            int limit_slow = AppConfig.GetMode("limit_slow", limit_total);
-            if (limit_slow < 0) limit_slow = limit_total;
-            int limit_fast = AppConfig.GetMode("limit_fast", limit_slow);
-
-            // The SMU PM-table read is the authority: on models without the
-            // ASUS WMI readback IDs (e.g. TUF A15), a WMI-based check would
-            // report "unverifiable" every tick and force a write, defeating
-            // the drift check. Only fall back to the unconditional write when
-            // the live read itself is unavailable.
-            bool limitsMatch = live is not null
-                && limit_total >= AsusACPI.MinTotal && limit_total <= AsusACPI.MaxTotal
-                && Math.Abs(live.Stapm - limit_total) <= DriftTolerance
-                && Math.Abs(live.Slow - limit_slow) <= DriftTolerance
-                && Math.Abs(live.Fast - limit_fast) <= DriftTolerance;
-
-            if (limitsMatch) return;
-
-            SetRyzenPower();
-            SetPower();
+            if (applyGpu) ReapplyGpuIfDrifted();
         }
 
         private static bool LiveTempMatches(PowerLimits? live, int cpuTemp)
         {
             if (live is null) return false;
             return Math.Abs(live.TctlTemp - cpuTemp) <= DriftTolerance;
+        }
+
+        // Re-assert GPU clocks/voltage when the driver dropped them mid-session
+        // (game load, sleep, TDR, service restart). The setters verify live
+        // state first and skip when it already matches, so steady-state cost
+        // is just the reads. Never elevates from here: NV writes need admin,
+        // and a sleeping dGPU is left alone (a lock dropped across sleep is
+        // re-asserted on the first active tick after wake).
+        private void ReapplyGpuIfDrifted()
+        {
+            if (!ProcessHelper.IsUserAdministrator()) return;
+            if (Program.acpi.DeviceGet(AsusACPI.GPUEco) == 1) return;
+            var gpu = HardwareControl.GpuControl;
+            if (gpu is null || !gpu.IsNvidia) return;
+            try { if (gpu.GetGpuUse() is null) return; }
+            catch { return; }
+            SetGPUVoltage(false);
+            SetGPUClocks(false);
         }
 
         // False only when every writable WMI limit reads back matching config.
@@ -249,8 +275,12 @@ namespace GHelper.Mode
                     if (AppConfig.Is("status_mode")) Program.acpi.DeviceSet(AsusACPI.StatusMode, [0x00, Modes.GetBase(mode) == AsusACPI.PerformanceSilent ? (byte)0x02 : (byte)0x03], "StatusMode");
                     Program.acpi.SetPerformanceMode(AppConfig.IsManualModeRequired() ? AsusACPI.PerformanceManual : Modes.GetBase(mode));
 
-                    SetGPUVoltage();
-                    SetGPUClocks();
+                    if (AppConfig.IsApplyGPU())
+                    {
+                        SetGPUVoltage();
+                        SetGPUClocks();
+                    }
+                    else Logger.WriteLine("GPU auto-apply disabled, skipping voltage/clocks");
 
                     await Task.Delay(TimeSpan.FromMilliseconds(100), ct);
                     ct.ThrowIfCancellationRequested();
@@ -295,7 +325,7 @@ namespace GHelper.Mode
 
             settings.FansInit();
 
-            SetReapplyEnabled(AppConfig.IsApplyPower());
+            SetReapplyEnabled(AppConfig.IsApplyPower() || AppConfig.IsApplyGPU());
         }
 
         // SyncEcMode disabled: on some ASUS models the EC mode readback is unreliable,
@@ -411,7 +441,7 @@ namespace GHelper.Mode
             SetPower(launchAsAdmin);
 
             Thread.Sleep(500);
-            SetGPUPower();
+            if (AppConfig.IsApplyGPU()) SetGPUPower();
             SetCrossPower();
             AutoRyzen();
 
@@ -571,9 +601,11 @@ namespace GHelper.Mode
                 return true;
             }
 
-            // clean_shutdown: 1 = last exit clean, 0 = running/dirty.
-            // Set to 0 on startup, 1 on clean exit. A crash/BSOD leaves 0 behind.
-            if (AppConfig.Get("clean_shutdown", 1) == 0 && AppConfig.Get("start_count", 1) > 1)
+            // clean_shutdown is captured once at startup into
+            // Program.UncleanShutdownDetected. Do not read the live config
+            // value here: it is always 0 while running, which would skip
+            // voltage auto-apply on every boot, clean or not.
+            if (Program.UncleanShutdownDetected)
             {
                 Logger.WriteLine("Voltage: skipping auto-apply after unclean shutdown, keeping stock until user re-applies");
                 return true;
@@ -608,11 +640,28 @@ namespace GHelper.Mode
                 if (!HardwareControl.GpuControl!.IsNvidia) { Logger.WriteLine("Voltage: NotNvidia"); return; }
 
                 NvidiaGpuControl nvControl = (NvidiaGpuControl)HardwareControl.GpuControl;
+                bool rewrite = force;
+                if (!reset && !rewrite)
+                {
+                    // Live check: a stale _lastVoltage cache must not mask a lock
+                    // the driver dropped mid-session (game load, sleep, TDR,
+                    // service restart). Rewrite when the driver drifted.
+                    int clockLimit = AppConfig.GetMode("gpu_clock_limit");
+                    var (locked, mv) = nvControl.GetVoltageLock();
+                    bool mirror = locked && clockLimit > 0 && clockLimit < NvidiaGpuControl.MaxClockLimit
+                        && Math.Abs(mv - clockLimit) <= 5;
+                    if (locked && !mirror && mv == voltage) return;
+                    rewrite = true;
+                }
                 try
                 {
-                    int status = nvControl.SetVoltage(voltage, force);
+                    int status = nvControl.SetVoltage(voltage, rewrite);
                     if (status == NvidiaGpuControl.NeedsAdmin && launchAsAdmin) ProcessHelper.RunAsAdmin("gpu");
                     if (status == -1) Logger.WriteLine("Voltage: apply failed, not escalating (already admin or non-permission error)");
+                    // A manual re-apply proves the value is wanted: stop
+                    // skipping auto-apply for the rest of this session after
+                    // a real unclean shutdown.
+                    if (force && (status == 1 || status == 0)) Program.UncleanShutdownDetected = false;
                 }
                 catch (Exception ex)
                 {
@@ -746,7 +795,7 @@ namespace GHelper.Mode
                 Logger.WriteLine("UV Error: " + ex.ToString());
             }
 
-            SetReapplyEnabled(AppConfig.IsApplyUV() || AppConfig.IsApplyPower());
+            SetReapplyEnabled(AppConfig.IsApplyUV() || AppConfig.IsApplyPower() || AppConfig.IsApplyGPU());
             return lines.ToString().TrimEnd();
         }
 
@@ -778,7 +827,7 @@ namespace GHelper.Mode
             if (_cpuUV != 0) SetUV(0);
             if (_igpuUV != 0) SetUViGPU(0);
             if (_cpuTemp != CpuInfo.DefaultTemp) SetCPUTemp(CpuInfo.DefaultTemp, true);
-            SetReapplyEnabled(AppConfig.IsApplyPower());
+            SetReapplyEnabled(AppConfig.IsApplyPower() || AppConfig.IsApplyGPU());
         }
 
         // On uncheck, revert to the machine's OEM factory defaults for this mode

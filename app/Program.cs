@@ -44,6 +44,11 @@ namespace GHelper
 
         public static InputDispatcher? inputDispatcher;
 
+        // Captured at startup before clean_shutdown is reset to 0 (dirty).
+        // ModeControl reads this instead of the live config value, which is
+        // always 0 after startup and would otherwise skip voltage on every boot.
+        public static bool UncleanShutdownDetected = false;
+
         // The main entry point for the application
         public static void Main(string[] args)
         {
@@ -100,7 +105,10 @@ namespace GHelper
 
             // Crash guard for GPU voltage trials: 0 = running/dirty, 1 = clean exit.
             // A crash/BSOD leaves 0 behind, so the next boot skips auto-apply.
-            if (AppConfig.Get("clean_shutdown", 1) == 0 && startCount > 1)
+            // Capture before overwriting: live config reads after this point
+            // always see 0 and must not be used for the unclean check.
+            UncleanShutdownDetected = AppConfig.Get("clean_shutdown", 1) == 0 && startCount > 1;
+            if (UncleanShutdownDetected)
                 Logger.WriteLine("Unclean shutdown detected, GPU voltage auto-apply will be skipped until re-applied");
             AppConfig.Set("clean_shutdown", 0);
             AppConfig.Flush();

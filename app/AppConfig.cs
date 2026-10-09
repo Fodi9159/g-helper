@@ -650,6 +650,9 @@ public static class AppConfig
     }
 
     public static bool IsApplyPower() => IsMode("auto_apply_power");
+    // GPU auto-apply defaults to on (1) so existing setups keep applying
+    // after reboot until the user opts out per mode in the GPU tab.
+    public static bool IsApplyGPU() => GetMode("auto_apply_gpu", 1) != 0;
     public static bool IsApplyFans() => IsMode("auto_apply");
     public static bool IsApplyUV() => IsMode("auto_uv");
 

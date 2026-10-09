@@ -31,6 +31,7 @@
             { "auto_boost", "int" },
             { "auto_apply", "int" },
             { "auto_apply_power", "int" },
+            { "auto_apply_gpu", "int" },
             { "auto_uv", "_" },
             { "hysteresis_up", "int" },
             { "hysteresis_down", "int" }

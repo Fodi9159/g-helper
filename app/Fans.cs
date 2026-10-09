@@ -58,6 +58,7 @@ namespace GHelper
             Text = Properties.Strings.FansAndPower;
             labelPowerLimits.Text = Properties.Strings.PowerLimits;
             checkApplyPower.Text = Properties.Strings.ApplyPowerLimits;
+            checkApplyGPU.Text = Properties.Strings.ApplyGPUSettings;
 
             labelFans.Text = "BIOS " + Properties.Strings.FanCurves;
             labelBoost.Text = Properties.Strings.CPUBoost;
@@ -198,6 +199,7 @@ namespace GHelper
 
             checkApplyFans.Click += CheckApplyFans_Click;
             checkApplyPower.Click += CheckApplyPower_Click;
+            checkApplyGPU.Click += CheckApplyGPU_Click;
 
             trackGPUClockLimit.Minimum = NvidiaGpuControl.MinClockLimit;
             trackGPUClockLimit.Maximum = NvidiaGpuControl.MaxClockLimit;
@@ -851,6 +853,7 @@ namespace GHelper
 
         public void InitGPU()
         {
+            checkApplyGPU.Checked = AppConfig.IsApplyGPU();
             Task.Run(() =>
             {
                 if (Program.acpi.DeviceGet(AsusACPI.GPUEco) == 1)
@@ -1342,6 +1345,15 @@ namespace GHelper
 
         }
 
+        private void CheckApplyGPU_Click(object? sender, EventArgs e)
+        {
+            if (sender is null) return;
+            CheckBox chk = (CheckBox)sender;
+
+            AppConfig.SetMode("auto_apply_gpu", chk.Checked ? 1 : 0);
+            modeControl.SetPerformanceMode();
+        }
+
         public void InitAxis()
         {
             if (this == null || this.Text == "") return;
@@ -1686,6 +1698,7 @@ namespace GHelper
 
             checkApplyFans.Checked = false;
             checkApplyPower.Checked = false;
+            checkApplyGPU.Checked = false;
             seriesCPU.Color = Color.Gray;
             seriesGPU.Color = Color.Gray;
             seriesMid.Color = Color.Gray;
@@ -1693,6 +1706,7 @@ namespace GHelper
 
             AppConfig.SetMode("auto_apply", 0);
             AppConfig.SetMode("auto_apply_power", 0);
+            AppConfig.SetMode("auto_apply_gpu", 0);
 
             trackUV.Value = CpuInfo.MaxCPUUV;
             trackUViGPU.Value = CpuInfo.MaxIGPUUV;

@@ -232,6 +232,15 @@ namespace GHelper.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Apply GPU Settings after Reboot.
+        /// </summary>
+        internal static string ApplyGPUSettings {
+            get {
+                return ResourceManager.GetString("ApplyGPUSettings", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Apply Power Limits.
         /// </summary>
         internal static string ApplyPowerLimits {
