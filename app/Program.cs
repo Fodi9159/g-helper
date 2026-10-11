@@ -161,6 +161,10 @@ namespace GHelper
 
             ScreenControl.InitScreen();
 
+            // Must run before the first limit write: this is the GPU TGP delta
+            // as the machine shipped, which the reset paths restore.
+            modeControl.CaptureOemDefaults();
+
             SetAutoModes(init: true);
 
             powerSettleTimer.Elapsed += OnPowerSettled;
@@ -350,7 +354,7 @@ namespace GHelper
             inputDispatcher.Init();
             //HardwareControl.ReadSensors(true);
 
-            modeControl.AutoPerformance(powerChanged);
+            modeControl.AutoPerformance(powerChanged, init);
 
             if (powerChanged) settingsForm.matrixControl.SetMatrix(true);
             else settingsForm.matrixControl.SetDevice(true);

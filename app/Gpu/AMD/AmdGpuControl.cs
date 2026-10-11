@@ -468,20 +468,30 @@ public class AmdGpuControl : IGpuControl
             out maxRefreshRateInMicroHz) == Adl2.ADL_SUCCESS;
     }
 
+    // ADL use-case bitmask (ADL SDK: ADL_FREESYNC_USECASE_*): the setting is
+    // not a boolean. AMD Software enables all use cases; passing plain 1
+    // only enables the static-screen case and Adrenalin keeps reporting Off.
+    private const int FreeSyncUsecaseStatic = 0x1;
+    private const int FreeSyncUsecaseVideo = 0x2;
+    private const int FreeSyncUsecaseGaming = 0x4;
+    private const int FreeSyncUsecaseAll = FreeSyncUsecaseStatic | FreeSyncUsecaseVideo | FreeSyncUsecaseGaming;
+
     public bool SetFreeSync(bool enabled)
     {
         if (!IsValid) return false;
-        if (!TryGetFreeSyncState(out _, out _, out _, out int maxRefreshRateInMicroHz, out int displayIndex)) return false;
+        if (!TryGetFreeSyncState(out int current, out _, out _, out int maxRefreshRateInMicroHz, out int displayIndex)) return false;
 
         int refreshRateInMicroHz = enabled ? maxRefreshRateInMicroHz : 0;
-        int setting = enabled ? 1 : 0;
+        int setting = enabled ? FreeSyncUsecaseAll : 0;
 
-        return Adl2.NativeMethods.ADL2_Display_FreeSyncState_Set(
+        int result = Adl2.NativeMethods.ADL2_Display_FreeSyncState_Set(
             _adlContextHandle,
             GetDisplayAdapterIndex(),
             displayIndex,
             setting,
-            refreshRateInMicroHz) == Adl2.ADL_SUCCESS;
+            refreshRateInMicroHz);
+        Logger.WriteLine($"SET FREESYNC: {current} -> {setting} (rc={result})");
+        return result == Adl2.ADL_SUCCESS;
     }
 
     public ADLODNPerformanceLevels? GetGPUClocks()

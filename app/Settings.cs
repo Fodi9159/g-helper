@@ -387,8 +387,10 @@ namespace GHelper
 
             if (!amdGpuControl.TryGetFreeSyncState(out int current, out _, out _, out _, out _)) return;
 
+            Logger.WriteLine($"FreeSync state before toggle: {current}");
             bool enabled = current == 0;
-            amdGpuControl.SetFreeSync(enabled);
+            bool ok = amdGpuControl.SetFreeSync(enabled);
+            Logger.WriteLine($"FreeSync toggle {(enabled ? "on" : "off")}: {(ok ? "OK" : "FAILED")}");
             AppConfig.Set("freesync", enabled ? 1 : 0);
 
             if (amdGpuControl.TryGetFreeSyncState(out int currentFreeSync, out _, out _, out _, out _))

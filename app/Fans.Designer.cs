@@ -178,7 +178,7 @@ namespace GHelper
             labelGPUVoltageTitle = new Label();
             buttonGPUVoltageDefault = new RButton();
             panelGPUReapply = new Panel();
-            buttonGPUReapply = new RButton();
+            buttonGPUApply = new RButton();
             panelApplyGPU = new Panel();
             checkApplyGPU = new RCheckBox();
             panelTitleGPU = new Panel();
@@ -2058,7 +2058,7 @@ namespace GHelper
             // panelGPUReapply
             // 
             panelGPUReapply.AutoSize = true;
-            panelGPUReapply.Controls.Add(buttonGPUReapply);
+            panelGPUReapply.Controls.Add(buttonGPUApply);
             panelGPUReapply.Dock = DockStyle.Top;
             panelGPUReapply.Location = new Point(0, 804);
             panelGPUReapply.Name = "panelGPUReapply";
@@ -2066,23 +2066,23 @@ namespace GHelper
             panelGPUReapply.Size = new Size(520, 80);
             panelGPUReapply.TabIndex = 7;
             // 
-            // buttonGPUReapply
+            // buttonGPUApply
             // 
-            buttonGPUReapply.Activated = false;
-            buttonGPUReapply.BackColor = SystemColors.ControlLight;
-            buttonGPUReapply.BorderColor = Color.Transparent;
-            buttonGPUReapply.BorderRadius = 2;
-            buttonGPUReapply.Dock = DockStyle.Top;
-            buttonGPUReapply.FlatStyle = FlatStyle.Flat;
-            buttonGPUReapply.Location = new Point(15, 15);
-            buttonGPUReapply.Margin = new Padding(4, 2, 15, 15);
-            buttonGPUReapply.Name = "buttonGPUReapply";
-            buttonGPUReapply.Secondary = true;
-            buttonGPUReapply.Size = new Size(490, 50);
-            buttonGPUReapply.TabIndex = 50;
-            buttonGPUReapply.Text = "Reapply";
-            buttonGPUReapply.TextImageRelation = TextImageRelation.ImageBeforeText;
-            buttonGPUReapply.UseVisualStyleBackColor = false;
+            buttonGPUApply.Activated = false;
+            buttonGPUApply.BackColor = SystemColors.ControlLight;
+            buttonGPUApply.BorderColor = Color.Transparent;
+            buttonGPUApply.BorderRadius = 2;
+            buttonGPUApply.Dock = DockStyle.Top;
+            buttonGPUApply.FlatStyle = FlatStyle.Flat;
+            buttonGPUApply.Location = new Point(15, 15);
+            buttonGPUApply.Margin = new Padding(4, 2, 15, 15);
+            buttonGPUApply.Name = "buttonGPUApply";
+            buttonGPUApply.Secondary = true;
+            buttonGPUApply.Size = new Size(490, 50);
+            buttonGPUApply.TabIndex = 50;
+            buttonGPUApply.Text = "Apply";
+            buttonGPUApply.TextImageRelation = TextImageRelation.ImageBeforeText;
+            buttonGPUApply.UseVisualStyleBackColor = false;
             // 
             // panelApplyGPU
             // 
@@ -2475,7 +2475,7 @@ namespace GHelper
         private Label labelGPUVoltageTitle;
         private RButton buttonGPUVoltageDefault;
         private Panel panelGPUReapply;
-        private RButton buttonGPUReapply;
+        private RButton buttonGPUApply;
         private Panel panelApplyGPU;
         private RCheckBox checkApplyGPU;
         private RButton buttonCalibrate;

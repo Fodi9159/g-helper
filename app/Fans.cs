@@ -240,8 +240,8 @@ namespace GHelper
             trackGPUClockLimit.KeyUp += TrackGPUClocks_KeyUp;
             trackGPUVoltage.KeyUp += TrackGPUVoltage_KeyUp;
             buttonGPUVoltageDefault.Click += ButtonGPUVoltageDefault_Click;
-            buttonGPUReapply.Text = Properties.Strings.Reapply;
-            buttonGPUReapply.Click += ButtonGPUReapply_Click;
+            buttonGPUApply.Text = Properties.Strings.Apply;
+            buttonGPUApply.Click += ButtonGPUApply_Click;
 
             trackGPUBoost.MouseUp += TrackGPU_MouseUp;
             trackGPUTemp.MouseUp += TrackGPU_MouseUp;
@@ -410,7 +410,13 @@ namespace GHelper
         private void CheckApplyUV_Click(object? sender, EventArgs e)
         {
             AppConfig.SetMode("auto_uv", checkApplyUV.Checked ? 1 : 0);
-            modeControl.AutoRyzen();
+
+            // Like the GPU switch this one only controls whether G-Helper pushes
+            // the values: checking applies them now, unchecking stops applying
+            // them and leaves whatever is on the machine alone. Clearing them is
+            // the Advanced > Apply with 0 (or Factory Defaults).
+            if (checkApplyUV.Checked) modeControl.AutoRyzen();
+            else ModeControl.SetReapplyEnabled(AppConfig.IsApplyPower() || AppConfig.IsApplyGPU());
         }
 
         public void InitAll()
@@ -797,9 +803,11 @@ namespace GHelper
             });
         }
 
-        private void ButtonGPUReapply_Click(object? sender, EventArgs e)
+        private void ButtonGPUApply_Click(object? sender, EventArgs e) => ApplyAllGpuSettings();
+
+        private void ApplyAllGpuSettings()
         {
-            buttonGPUReapply.Enabled = false;
+            buttonGPUApply.Enabled = false;
             try
             {
                 CommitClockLimit();
@@ -817,7 +825,7 @@ namespace GHelper
             {
                 Task.Delay(1000).ContinueWith(_ =>
                 {
-                    try { BeginInvoke(delegate { buttonGPUReapply.Enabled = true; }); } catch { }
+                    try { BeginInvoke(delegate { buttonGPUApply.Enabled = true; }); } catch { }
                 });
             }
         }
@@ -894,8 +902,8 @@ namespace GHelper
                         AppConfig.Flush();
                     }
 
-                    if (gpu_boost < 0) gpu_boost = AsusACPI.MaxGPUBoost;
-                    if (gpu_temp < 0) gpu_temp = AsusACPI.MaxGPUTemp;
+                    if (gpu_boost < 0) gpu_boost = ModeControl.GetOemGpuBoostForMode(Modes.GetCurrentBase());
+                    if (gpu_temp < 0) gpu_temp = ModeControl.GetOemGpuTempForMode(Modes.GetCurrentBase());
 
                     if (core == -1) core = 0;
                     if (memory == -1) memory = 0;
@@ -1032,8 +1040,15 @@ namespace GHelper
             int up = AppConfig.GetMode("hysteresis_up");
             int down = AppConfig.GetMode("hysteresis_down");
 
-            if (up < 0) up = defaults.up > 0 ? defaults.up : 3;
-            if (down < 0) down = defaults.down > 0 ? defaults.down : 3;
+            // Prefer the value captured at startup over the live ACPI read:
+            // once a custom hysteresis has been applied, the live read is the
+            // custom value, and falling back to it would make a reset keep the
+            // custom setting (there is no way to tell the two apart).
+            int oemUp = ModeControl.OemHysteresisUp > 0 ? ModeControl.OemHysteresisUp : defaults.up;
+            int oemDown = ModeControl.OemHysteresisDown > 0 ? ModeControl.OemHysteresisDown : defaults.down;
+
+            if (up < 0) up = oemUp > 0 ? oemUp : 3;
+            if (down < 0) down = oemDown > 0 ? oemDown : 3;
 
             trackHysteresisUp.Value = Math.Clamp(up, trackHysteresisUp.Minimum, trackHysteresisUp.Maximum);
             trackHysteresisDown.Value = Math.Clamp(down, trackHysteresisDown.Minimum, trackHysteresisDown.Maximum);
@@ -1092,6 +1107,18 @@ namespace GHelper
         {
             int voltage = NvidiaGpuControl.SnapVoltage(trackGPUVoltage.Value);
             if (trackGPUVoltage.Value != voltage) trackGPUVoltage.Value = voltage;
+            if (!_gpuVoltageLocked)
+            {
+                // Stock state: the thumb is only parked at a live reading,
+                // never user-chosen. Clearing keeps Apply a no-op instead
+                // of turning the parked value into a real lock.
+                AppConfig.RemoveMode("gpu_voltage");
+                AppConfig.RemoveMode("gpu_voltage_pending");
+                AppConfig.RemoveMode("gpu_voltage_pending_time");
+                AppConfig.Flush();
+                VisualiseGPUSettings();
+                return;
+            }
             _gpuVoltageLocked = _gpuStockVoltage <= 0 || voltage != _gpuStockVoltage;
             // Stock position means true default: clear both the confirmed value
             // and any pending trial instead of storing the stock number
@@ -1324,13 +1351,26 @@ namespace GHelper
             CheckBox chk = (CheckBox)sender;
 
             AppConfig.SetMode("auto_apply_power", chk.Checked ? 1 : 0);
-            if (!chk.Checked)
+            if (chk.Checked)
             {
-                var mc = Program.modeControl;
-                if (mc is not null)
-                {
-                    mc.ApplyLiveSmuOnUncheck();
-                }
+                // Apply the limits of this mode right away, through the same
+                // path a slider release uses (AutoPower(true), which may
+                // escalate to admin for the SMU path). SetPerformanceMode's
+                // own AutoPower is delayed a second and is dropped when the
+                // mode is switched again before it runs, so it can't be
+                // relied on to honour a fresh check.
+                Task.Run(() => modeControl.AutoPower(true));
+            }
+            else
+            {
+                // Unchecking means "hand the limits back", not "stop re-checking
+                // them": drop the stored limits and push the machine's OEM
+                // defaults, so the last applied limit isn't still enforced and
+                // re-checking doesn't silently restore it. Written before
+                // SetPerformanceMode below, so the mode profile the firmware
+                // applies there stays in charge afterwards.
+                modeControl.ResetPowerConfig();
+                modeControl.ResetPowerLimits();
             }
             modeControl.SetPerformanceMode();
         }
@@ -1341,6 +1381,7 @@ namespace GHelper
             CheckBox chk = (CheckBox)sender;
 
             AppConfig.SetMode("auto_apply", chk.Checked ? 1 : 0);
+            if (!chk.Checked) ResetFanSettings();
             modeControl.SetPerformanceMode();
 
         }
@@ -1350,8 +1391,92 @@ namespace GHelper
             if (sender is null) return;
             CheckBox chk = (CheckBox)sender;
 
+            // This switch only controls whether the saved GPU values are
+            // (re)applied on a mode switch or after a reboot. Unchecking keeps
+            // them on the machine and in the config, so re-checking brings
+            // them back - it does not stock the card.
             AppConfig.SetMode("auto_apply_gpu", chk.Checked ? 1 : 0);
             modeControl.SetPerformanceMode();
+        }
+
+        // Unchecking the fan curve switch means "hand the fan back": the
+        // default curve for this mode goes back into the charts, the config
+        // and the hardware. Clearing the config alone isn't enough, the
+        // custom curve stays on the fan until something writes the default.
+        // Stock comes from the per-mode OEM snapshot (Turbo/Balanced/Silent
+        // each have their own), never from the live EC read - once a custom
+        // curve is applied the live read is the user's own, not stock.
+        private void ResetFanSettings()
+        {
+            LoadProfile(seriesCPU, AsusFan.CPU, true);
+            LoadProfile(seriesGPU, AsusFan.GPU, true);
+
+            if (AppConfig.Is("mid_fan"))
+                LoadProfile(seriesMid, AsusFan.Mid, true);
+
+            // XG Mobile has no per-mode OEM snapshot: stock is the dock's own
+            // firmware default via Reset(), not a curve. Writing a fallback
+            // hardcoded curve here would push a guess instead of stock.
+            if (AppConfig.Is("xgm_fan"))
+            {
+                AppConfig.Remove(AppConfig.GgetParamName(AsusFan.XGM));
+                XGM.Reset();
+            }
+
+            // Forced, because the switch is now off. The curves in the config
+            // are the defaults again at this point. The mode re-apply in
+            // SetPerformanceMode would also restore the BIOS profile, but not
+            // on every model when the mode itself doesn't change.
+            if (Program.acpi.IsSupported(AsusACPI.DevsCPUFanCurve))
+                modeControl.AutoFans(true);
+        }
+
+        // Factory Defaults only: drop the saved GPU tweaks and stock the card -
+        // no clock offsets, no clock cap, no voltage lock, and the machine's
+        // own GPU boost/temp/TGP for THIS mode (Turbo/Balanced/Silent differ).
+        private void ResetGpuSettings()
+        {
+            // No usable NVIDIA control (no dGPU, or it is powered off): there is
+            // nothing to stock, and clearing the config would just throw away
+            // settings for a card that isn't there.
+            if (!gpuVisible) return;
+
+            int baseMode = Modes.GetCurrentBase();
+
+            AppConfig.RemoveMode("gpu_core");
+            AppConfig.RemoveMode("gpu_memory");
+            AppConfig.RemoveMode("gpu_clock_limit");
+            AppConfig.RemoveMode("gpu_voltage");
+            AppConfig.RemoveMode("gpu_voltage_pending");
+            AppConfig.RemoveMode("gpu_voltage_pending_time");
+            AppConfig.RemoveMode("gpu_boost");
+            AppConfig.RemoveMode("gpu_temp");
+            AppConfig.RemoveMode("gpu_power");
+
+            trackGPUClockLimit.Value = NvidiaGpuControl.MaxClockLimit;
+            trackGPUVoltage.Value = _gpuStockVoltage > 0
+                ? Math.Clamp(_gpuStockVoltage, trackGPUVoltage.Minimum, trackGPUVoltage.Maximum)
+                : trackGPUVoltage.Value;
+            _gpuVoltageLocked = false;
+            trackGPUCore.Value = 0;
+            trackGPUMemory.Value = 0;
+
+            // Per-mode OEM stock, not a guessed max: writing MaxBoost on a
+            // machine whose stock is lower would raise the GPU power instead
+            // of restoring it.
+            trackGPUBoost.Value = Math.Clamp(ModeControl.GetOemGpuBoostForMode(baseMode), trackGPUBoost.Minimum, trackGPUBoost.Maximum);
+            trackGPUTemp.Value = Math.Clamp(ModeControl.GetOemGpuTempForMode(baseMode), trackGPUTemp.Minimum, trackGPUTemp.Maximum);
+
+            // No admin escalation on a reset: unlocking and clock offsets don't
+            // need it, and a UAC prompt on a reset button would be a surprise.
+            modeControl.SetGPUVoltage(false, true, true);
+            modeControl.SetGPUClocks(false, true);
+            modeControl.ResetGpuPower();
+
+            // Re-read the TGP after the reset, so the slider shows what the
+            // machine is left with rather than the value being written.
+            InitGPUPower();
+            VisualiseGPUSettings();
         }
 
         public void InitAxis()
@@ -1436,10 +1561,18 @@ namespace GHelper
 
             checkApplyPower.Checked = AppConfig.IsApplyPower();
 
-            int limit_total = AppConfig.GetMode("limit_total", AsusACPI.DefaultTotal);
-            int limit_slow = AppConfig.GetMode("limit_slow", limit_total);
-            int limit_fast = AppConfig.GetMode("limit_fast", limit_total);
-                        int limit_cpu = AppConfig.GetMode("limit_cpu", AsusACPI.DefaultCPU);
+            // First load with nothing stored: this mode's own OEM stock is the
+            // right default (Turbo/Balanced/Silent differ), not a single
+            // fallback constant and never a live readback (live would be the
+            // user's own custom once applied).
+            int oemTotal = ModeControl.GetOemTotalForMode(Modes.GetCurrentBase());
+            int oemSlow = ModeControl.GetOemSlowForMode(Modes.GetCurrentBase());
+            int oemFast = ModeControl.GetOemFastForMode(Modes.GetCurrentBase());
+            int oemCpu = ModeControl.GetOemCpuForMode(Modes.GetCurrentBase());
+            int limit_total = AppConfig.GetMode("limit_total", oemTotal);
+            int limit_slow = AppConfig.GetMode("limit_slow", oemSlow);
+            int limit_fast = AppConfig.GetMode("limit_fast", oemFast);
+                        int limit_cpu = AppConfig.GetMode("limit_cpu", oemCpu);
                         int limit_cpucap = AppConfig.GetMode("limit_cpucap", limit_total);
 
                         if (limit_total > AsusACPI.MaxTotal) limit_total = AsusACPI.MaxTotal;
@@ -1642,14 +1775,45 @@ namespace GHelper
             series.Points.Clear();
 
             byte[] curve = AppConfig.GetFanConfig(device);
+            bool hadStored = !AsusACPI.IsInvalidCurve(curve);
 
-            if (reset || AsusACPI.IsInvalidCurve(curve))
+            if (reset || !hadStored)
             {
-                curve = Program.acpi.GetFanCurve(device, Modes.GetCurrentBase());
-                Logger.WriteLine($"Default Curve: {device} - {BitConverter.ToString(curve)}");
-                if (AsusACPI.IsInvalidCurve(curve))
-                    curve = AppConfig.GetDefaultCurve(device);
+                int baseMode = Modes.GetCurrentBase();
 
+                if (reset)
+                {
+                    // Reverting: use the curve the machine had for *this* mode,
+                    // captured at startup. Every mode keeps its own OEM curve, so
+                    // Turbo must not be reset with the Balanced one. Reading the
+                    // EC here instead would hand back our own custom curve (the
+                    // active slot holds it once applied), and the built-in table
+                    // is only a last resort for a mode we never managed to read.
+                    if (device == AsusFan.XGM)
+                    {
+                        // No OEM snapshot for the dock: caller (ResetFanSettings)
+                        // handles XGM via Remove + XGM.Reset(), never here.
+                        curve = AppConfig.GetDefaultCurve(device);
+                    }
+                    else if (ModeControl.TryGetOemFanCurve(device, baseMode, out byte[] oem))
+                        curve = (byte[])oem.Clone();     // FixFanCurve edits in place
+                    else curve = AppConfig.GetDefaultCurve(device);
+                }
+                else
+                {
+                    // First load for this mode with nothing stored: the machine's
+                    // own curve for the mode is the right source.
+                    if (device == AsusFan.XGM)
+                        curve = AppConfig.GetDefaultCurve(device);
+                    else
+                    {
+                        curve = Program.acpi.GetFanCurve(device, baseMode);
+                        if (AsusACPI.IsInvalidCurve(curve))
+                            curve = AppConfig.GetDefaultCurve(device);
+                    }
+                }
+
+                Logger.WriteLine($"Default Curve: {device} - {BitConverter.ToString(curve)}");
                 curve = AsusACPI.FixFanCurve(curve);
 
             }
@@ -1663,6 +1827,12 @@ namespace GHelper
                 series.Points.AddXY(curve[i], curve[i + 8]);
                 old = curve[i];
             }
+
+            // XG Mobile placeholder must not become a stored custom: there is
+            // no OEM snapshot for the dock, stock is XGM.Reset(). Saving the
+            // display-only default here would turn it into a custom curve that
+            // a later Apply would push to the dock instead of stock.
+            if (device == AsusFan.XGM && !reset && !hadStored) return;
 
             SaveProfile(series, device);
 
@@ -1684,17 +1854,19 @@ namespace GHelper
 
         }
 
+        // "Factory Defaults" has to undo three separate things: what is stored
+        // for this mode, what is currently enforced by the hardware, and what
+        // the sliders show. Clearing only the config leaves the last applied
+        // limit in the SMU/driver and re-applies it on the next mode switch.
+        // 1. Apply GPU Settings after Reboot OFF = flag only, hardware kept.
+        // 2. Apply Fan Curve OFF = per-mode OEM fan curve back (charts+config+EC).
+        // 3. Apply Power Limits OFF = per-mode OEM power back (config+sliders+ACPI/SMU).
+        // 4. Auto Apply (UV) OFF = flag only, hardware kept.
+        // 5. Factory Defaults = all of the above reverted to per-mode OEM stock.
         private void ButtonReset_Click(object? sender, EventArgs e)
         {
 
-            LoadProfile(seriesCPU, AsusFan.CPU, true);
-            LoadProfile(seriesGPU, AsusFan.GPU, true);
-
-            if (AppConfig.Is("mid_fan"))
-                LoadProfile(seriesMid, AsusFan.Mid, true);
-
-            if (AppConfig.Is("xgm_fan"))
-                LoadProfile(seriesXGM, AsusFan.XGM, true);
+            ResetFanSettings();
 
             checkApplyFans.Checked = false;
             checkApplyPower.Checked = false;
@@ -1708,6 +1880,17 @@ namespace GHelper
             AppConfig.SetMode("auto_apply_power", 0);
             AppConfig.SetMode("auto_apply_gpu", 0);
 
+            // Config and sliders both go back to this mode's OEM values, so the
+            // stored limits can't come back on the next mode switch.
+            modeControl.ResetPowerConfig();
+
+            int baseMode = Modes.GetCurrentBase();
+            trackTotal.Value = Math.Clamp(ModeControl.GetOemTotalForMode(baseMode), trackTotal.Minimum, trackTotal.Maximum);
+            trackSlow.Value = Math.Clamp(ModeControl.GetOemSlowForMode(baseMode), trackSlow.Minimum, trackSlow.Maximum);
+            trackFast.Value = Math.Clamp(ModeControl.GetOemFastForMode(baseMode), trackFast.Minimum, trackFast.Maximum);
+            trackCPU.Value = Math.Clamp(ModeControl.GetOemCpuForMode(baseMode), trackCPU.Minimum, trackCPU.Maximum);
+            trackCPUCAP.Value = Math.Clamp(ModeControl.GetOemTotalForMode(baseMode), trackCPUCAP.Minimum, trackCPUCAP.Maximum);
+
             trackUV.Value = CpuInfo.MaxCPUUV;
             trackUViGPU.Value = CpuInfo.MaxIGPUUV;
             trackTemp.Value = CpuInfo.DefaultTemp;
@@ -1719,6 +1902,14 @@ namespace GHelper
 
             AdvancedScroll();
             AppConfig.RemoveMode("cpu_temp");
+            AppConfig.RemoveMode("cpu_uv_cores");
+
+            // Push this mode's OEM power limits BEFORE the mode reset, so the
+            // BIOS profile the firmware applies in ResetPerformanceMode stays
+            // in charge afterwards (same values). Writing constants after the
+            // reset would stomp a per-mode profile (e.g. Turbo) with a single
+            // fallback value. Same order as unchecking Apply Power Limits.
+            modeControl.ResetPowerLimits();
 
             modeControl.ResetPerformanceMode();
 
@@ -1726,47 +1917,21 @@ namespace GHelper
 
             XGM.Reset();
 
-
-            if (gpuVisible)
-            {
-                trackGPUClockLimit.Value = NvidiaGpuControl.MaxClockLimit;
-                trackGPUVoltage.Value = _gpuStockVoltage > 0
-                    ? Math.Max(Math.Min(_gpuStockVoltage, NvidiaGpuControl.MaxVoltage), NvidiaGpuControl.MinVoltage)
-                    : trackGPUVoltage.Value;
-                _gpuVoltageLocked = false;
-                trackGPUCore.Value = 0;
-                trackGPUMemory.Value = 0;
-
-                trackGPUBoost.Value = AsusACPI.MaxGPUBoost;
-                trackGPUTemp.Value = AsusACPI.MaxGPUTemp;
-
-                //AppConfig.SetMode("gpu_boost", trackGPUBoost.Value);
-                //AppConfig.SetMode("gpu_temp", trackGPUTemp.Value);
-
-                AppConfig.RemoveMode("gpu_boost");
-                AppConfig.RemoveMode("gpu_temp");
-
-                AppConfig.RemoveMode("gpu_power");
-                AppConfig.RemoveMode("gpu_voltage");
-                AppConfig.RemoveMode("gpu_voltage_pending");
-                AppConfig.RemoveMode("gpu_voltage_pending_time");
-                AppConfig.RemoveMode("gpu_clock_limit");
-                AppConfig.RemoveMode("gpu_core");
-                AppConfig.RemoveMode("gpu_memory");
-
-                InitGPUPower();
-
-                VisualiseGPUSettings();
-                modeControl.SetGPUVoltage(true, true, true);
-                modeControl.SetGPUClocks(true, true);
-                modeControl.SetGPUPower();
-            }
+            // Stock the card here, even though unchecking Apply GPU Settings
+            // deliberately doesn't: this is the one control that reverts
+            // everything. Stocking means dropping the saved tweaks and putting
+            // the machine's own values back - the driver's clock and voltage
+            // lock survive a config clear, because nothing else writes them
+            // back to stock once the keys are gone.
+            if (gpuVisible) ResetGpuSettings();
 
             if (panelHysteresis.Visible)
             {
                 AppConfig.RemoveMode("hysteresis_up");
                 AppConfig.RemoveMode("hysteresis_down");
                 InitHysteresis();
+                if (panelHysteresis.Visible)
+                    Program.acpi.SetFanHysteresis(trackHysteresisUp.Value, trackHysteresisDown.Value);
             }
 
         }
