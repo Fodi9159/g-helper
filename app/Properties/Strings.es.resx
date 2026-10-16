@@ -779,6 +779,9 @@
   <data name="ReadLimits" xml:space="preserve">
     <value>Leer límites</value>
   </data>
+  <data name="RearLight" xml:space="preserve">
+    <value>Luz trasera</value>
+  </data>
   <data name="Reset" xml:space="preserve">
     <value>Reiniciar</value>
   </data>
@@ -858,7 +861,7 @@
     <value>Alternar pantalla</value>
   </data>
   <data name="ToggleTouchpad" xml:space="preserve">
-    <value>Toggle Touchpad</value>
+    <value>Alternar Touchpad</value>
   </data>
   <data name="ToggleTouchscreen" xml:space="preserve">
     <value>Alternar pantalla táctil</value>

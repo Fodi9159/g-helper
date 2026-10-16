@@ -2223,6 +2223,15 @@ namespace GHelper.Properties {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to Rear Light.
+        /// </summary>
+        internal static string RearLight {
+            get {
+                return ResourceManager.GetString("RearLight", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Overlay.
         /// </summary>
         internal static string Overlay {
