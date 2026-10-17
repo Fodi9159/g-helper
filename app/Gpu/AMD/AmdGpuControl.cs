@@ -413,59 +413,161 @@ public class AmdGpuControl : IGpuControl
         return _iGPU is not null ? ((ADLAdapterInfo)_iGPU).AdapterIndex : _internalDiscreteAdapter.AdapterIndex;
     }
 
-    private bool TryGetDisplayIndex(out int displayIndex)
+    // All AMD adapter indices that can own the internal panel. iGPU first
+    // (hybrid mode), then discrete (MUX Ultimate / external on dGPU).
+    private int[] GetFreeSyncAdapterIndices()
+    {
+        if (!IsValid) return Array.Empty<int>();
+        int preferred = GetDisplayAdapterIndex();
+        int discrete = _internalDiscreteAdapter.AdapterIndex;
+        if (discrete == preferred) return new[] { preferred };
+        return new[] { preferred, discrete };
+    }
+
+    private List<int> GetFreeSyncCandidateIndices(int adapterIndex, int numDisplays)
+    {
+        var list = new List<int>();
+        for (int i = 0; i < numDisplays; i++) list.Add(i);
+
+        // ADL display indices are not always 0..N-1 for eDP/internal panels
+        // (MUX, disconnected entries). Also probe logical indices from DisplayInfo.
+        try
+        {
+            if (ADL2_Display_DisplayInfo_Get(_adlContextHandle, adapterIndex, out int count, out nint buffer, 0) == Adl2.ADL_SUCCESS)
+            {
+                try
+                {
+                    int size = Marshal.SizeOf<ADLDisplayInfo>();
+                    for (int i = 0; i < count; i++)
+                    {
+                        var info = Marshal.PtrToStructure<ADLDisplayInfo>(buffer + i * size);
+                        int logical = info.DisplayID.DisplayLogicalIndex;
+                        if (!list.Contains(logical)) list.Add(logical);
+                    }
+                }
+                finally
+                {
+                    Adl2.FreeMemory(buffer);
+                }
+            }
+        }
+        catch { }
+        return list;
+    }
+
+    private bool TryGetDisplayOnAdapter(int adapterIndex, out int displayIndex, out int onCurrent, out int onDefault, out int onMin, out int onMax)
     {
         displayIndex = -1;
-        if (!IsValid) return false;
+        onCurrent = onDefault = onMin = onMax = -1;
 
-        int adapterIndex = GetDisplayAdapterIndex();
+        int firstCapable = -1;
+        int firstCurrent = -1, firstDefault = -1, firstMin = -1, firstMax = -1;
+        int onDisplay = -1;
+        int onCur = -1, onDef = -1, onMi = -1, onMa = -1;
 
         if (Adl2.NativeMethods.ADL2_Display_NumberOfDisplays_Get(_adlContextHandle, adapterIndex, out int numDisplays) != Adl2.ADL_SUCCESS)
+        {
+            Logger.WriteLine($"FreeSync probe: adapter {adapterIndex} numDisplays failed");
             return false;
+        }
 
-        for (int i = 0; i < numDisplays; i++)
+        foreach (int i in GetFreeSyncCandidateIndices(adapterIndex, numDisplays))
         {
             if (Adl2.NativeMethods.ADL2_Display_FreeSync_Cap(_adlContextHandle, adapterIndex, i, out ADLFreeSyncCap caps) != Adl2.ADL_SUCCESS)
-                continue;
-
-            if (caps.iCaps == 0)
                 continue;
 
             if (Adl2.NativeMethods.ADL2_Display_FreeSyncState_Get(
                 _adlContextHandle,
                 adapterIndex,
                 i,
-                out _,
-                out _,
-                out _,
-                out _) != Adl2.ADL_SUCCESS)
+                out int current,
+                out int def,
+                out int min,
+                out int max) != Adl2.ADL_SUCCESS)
             {
                 continue;
             }
 
-            displayIndex = i;
+            // caps.iCaps == 0 means no FreeSync support at all (ADL_FREESYNC_CAP_*).
+            // (No per-probe logging here: VisualiseScreen polls this often.)
+
+            if (caps.iCaps == 0)
+                continue;
+
+            if (firstCapable < 0)
+            {
+                firstCapable = i;
+                firstCurrent = current; firstDefault = def; firstMin = min; firstMax = max;
+            }
+
+            // Prefer a display that is currently ON so we agree with Adrenalin
+            // when several capable displays exist (internal + external).
+            if (onDisplay < 0 && IsFreeSyncOn(current))
+            {
+                onDisplay = i;
+                onCur = current; onDef = def; onMi = min; onMa = max;
+            }
+        }
+
+        if (onDisplay >= 0)
+        {
+            displayIndex = onDisplay;
+            onCurrent = onCur; onDefault = onDef; onMin = onMi; onMax = onMa;
+            return true;
+        }
+
+        if (firstCapable >= 0)
+        {
+            displayIndex = firstCapable;
+            onCurrent = firstCurrent; onDefault = firstDefault; onMin = firstMin; onMax = firstMax;
             return true;
         }
 
         return false;
     }
 
-    public bool TryGetFreeSyncState(out int current, out int defaultState, out int minRefreshRateInMicroHz, out int maxRefreshRateInMicroHz, out int displayIndex)
+    private bool TryGetFreeSyncDisplay(out int adapterIndex, out int displayIndex, out int current, out int defaultState, out int minRefreshRateInMicroHz, out int maxRefreshRateInMicroHz)
     {
+        adapterIndex = displayIndex = -1;
         current = defaultState = minRefreshRateInMicroHz = maxRefreshRateInMicroHz = -1;
-        displayIndex = -1;
-
         if (!IsValid) return false;
-        if (!TryGetDisplayIndex(out displayIndex)) return false;
 
-        return Adl2.NativeMethods.ADL2_Display_FreeSyncState_Get(
-            _adlContextHandle,
-            GetDisplayAdapterIndex(),
-            displayIndex,
-            out current,
-            out defaultState,
-            out minRefreshRateInMicroHz,
-            out maxRefreshRateInMicroHz) == Adl2.ADL_SUCCESS;
+        // Fallback when nothing is ON: first capable display found.
+        int fbAdapter = -1, fbDisplay = -1, fbCur = -1, fbDef = -1, fbMin = -1, fbMax = -1;
+
+        foreach (int idx in GetFreeSyncAdapterIndices())
+        {
+            if (TryGetDisplayOnAdapter(idx, out int d, out int cur, out int def, out int min, out int max))
+            {
+                if (IsFreeSyncOn(cur))
+                {
+                    adapterIndex = idx; displayIndex = d;
+                    current = cur; defaultState = def; minRefreshRateInMicroHz = min; maxRefreshRateInMicroHz = max;
+                    return true;
+                }
+                if (fbAdapter < 0)
+                {
+                    fbAdapter = idx; fbDisplay = d; fbCur = cur; fbDef = def; fbMin = min; fbMax = max;
+                }
+            }
+        }
+
+        if (fbAdapter >= 0)
+        {
+            adapterIndex = fbAdapter; displayIndex = fbDisplay;
+            current = fbCur; defaultState = fbDef; minRefreshRateInMicroHz = fbMin; maxRefreshRateInMicroHz = fbMax;
+            return true;
+        }
+
+        Logger.WriteLine("FreeSync probe: no capable display on any AMD adapter");
+        return false;
+    }
+
+    private bool TryGetDisplayIndex(out int displayIndex)
+    {
+        bool ok = TryGetFreeSyncDisplay(out _, out displayIndex, out _, out _, out _, out _);
+        if (!ok) displayIndex = -1;
+        return ok;
     }
 
     // ADL use-case bitmask (ADL SDK: ADL_FREESYNC_USECASE_*): the setting is
@@ -476,22 +578,58 @@ public class AmdGpuControl : IGpuControl
     private const int FreeSyncUsecaseGaming = 0x4;
     private const int FreeSyncUsecaseAll = FreeSyncUsecaseStatic | FreeSyncUsecaseVideo | FreeSyncUsecaseGaming;
 
+    public static bool IsFreeSyncOn(int current) => (current & FreeSyncUsecaseAll) != 0;
+
+    public bool TryGetFreeSyncState(out int current, out int defaultState, out int minRefreshRateInMicroHz, out int maxRefreshRateInMicroHz, out int displayIndex)
+    {
+        current = defaultState = minRefreshRateInMicroHz = maxRefreshRateInMicroHz = -1;
+        displayIndex = -1;
+
+        if (!IsValid) return false;
+        return TryGetFreeSyncDisplay(out _, out displayIndex, out current, out defaultState, out minRefreshRateInMicroHz, out maxRefreshRateInMicroHz);
+    }
+
     public bool SetFreeSync(bool enabled)
     {
         if (!IsValid) return false;
-        if (!TryGetFreeSyncState(out int current, out _, out _, out int maxRefreshRateInMicroHz, out int displayIndex)) return false;
 
-        int refreshRateInMicroHz = enabled ? maxRefreshRateInMicroHz : 0;
+        // Apply to every capable display on every AMD adapter so internal
+        // (iGPU or dGPU in MUX Ultimate) and external panels stay in sync
+        // with Adrenalin instead of only the first display found.
         int setting = enabled ? FreeSyncUsecaseAll : 0;
+        bool anyTried = false;
+        bool anyOk = false;
 
-        int result = Adl2.NativeMethods.ADL2_Display_FreeSyncState_Set(
-            _adlContextHandle,
-            GetDisplayAdapterIndex(),
-            displayIndex,
-            setting,
-            refreshRateInMicroHz);
-        Logger.WriteLine($"SET FREESYNC: {current} -> {setting} (rc={result})");
-        return result == Adl2.ADL_SUCCESS;
+        foreach (int adapterIndex in GetFreeSyncAdapterIndices())
+        {
+            if (Adl2.NativeMethods.ADL2_Display_NumberOfDisplays_Get(_adlContextHandle, adapterIndex, out int numDisplays) != Adl2.ADL_SUCCESS)
+                continue;
+
+            foreach (int i in GetFreeSyncCandidateIndices(adapterIndex, numDisplays))
+            {
+                if (Adl2.NativeMethods.ADL2_Display_FreeSync_Cap(_adlContextHandle, adapterIndex, i, out ADLFreeSyncCap caps) != Adl2.ADL_SUCCESS)
+                    continue;
+                if (caps.iCaps == 0)
+                    continue;
+                if (Adl2.NativeMethods.ADL2_Display_FreeSyncState_Get(
+                    _adlContextHandle, adapterIndex, i,
+                    out int current, out _, out _, out int maxRefresh) != Adl2.ADL_SUCCESS)
+                    continue;
+
+                int refreshRateInMicroHz = enabled ? maxRefresh : 0;
+                int result = Adl2.NativeMethods.ADL2_Display_FreeSyncState_Set(
+                    _adlContextHandle,
+                    adapterIndex,
+                    i,
+                    setting,
+                    refreshRateInMicroHz);
+                Logger.WriteLine($"SET FREESYNC: adapter {adapterIndex} display {i}: {current} -> {setting} (rc={result})");
+                anyTried = true;
+                if (result == Adl2.ADL_SUCCESS) anyOk = true;
+            }
+        }
+
+        return anyTried && anyOk;
     }
 
     public ADLODNPerformanceLevels? GetGPUClocks()

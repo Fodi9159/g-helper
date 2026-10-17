@@ -389,15 +389,16 @@ namespace GHelper
             if (!amdGpuControl.TryGetFreeSyncState(out int current, out _, out _, out _, out _)) return;
 
             Logger.WriteLine($"FreeSync state before toggle: {current}");
-            bool enabled = current == 0;
+            bool enabled = !AmdGpuControl.IsFreeSyncOn(current);
             bool ok = amdGpuControl.SetFreeSync(enabled);
             Logger.WriteLine($"FreeSync toggle {(enabled ? "on" : "off")}: {(ok ? "OK" : "FAILED")}");
             AppConfig.Set("freesync", enabled ? 1 : 0);
 
             if (amdGpuControl.TryGetFreeSyncState(out int currentFreeSync, out _, out _, out _, out _))
             {
-                buttonFreeSync.Activated = currentFreeSync > 0;
-                buttonFreeSync.Text = currentFreeSync > 0 ? "FreeSync On" : "FreeSync Off";
+                bool isOn = AmdGpuControl.IsFreeSyncOn(currentFreeSync);
+                buttonFreeSync.Activated = isOn;
+                buttonFreeSync.Text = isOn ? "FreeSync On" : "FreeSync Off";
                 buttonFreeSync.BorderColor = colorStandard;
             }
         }
@@ -1616,8 +1617,9 @@ namespace GHelper
             {
                 buttonFreeSync.Visible = true;
                 ButtonEnabled(buttonFreeSync, screenEnabled && !hdr);
-                buttonFreeSync.Activated = currentFreeSync > 0;
-                buttonFreeSync.Text = currentFreeSync > 0 ? "FreeSync On" : "FreeSync Off";
+                bool isOn = AmdGpuControl.IsFreeSyncOn(currentFreeSync);
+                buttonFreeSync.Activated = isOn;
+                buttonFreeSync.Text = isOn ? "FreeSync On" : "FreeSync Off";
                 buttonFreeSync.BorderColor = colorStandard;
             }
             else
