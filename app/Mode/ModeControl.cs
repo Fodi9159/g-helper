@@ -628,8 +628,16 @@ namespace GHelper.Mode
                 int clock_limit = AppConfig.GetMode("gpu_clock_limit");
 
                 if (reset) core = memory = clock_limit = 0;
-
-                if (core == -1 && memory == -1 && clock_limit == -1) return;
+                else
+                {
+                    // Unset means stock for this mode: zero offsets and the
+                    // default clock cap. This used to early-return, which
+                    // left whatever another mode's sliders had written on
+                    // the driver - exactly the cross-mode leak we're fixing.
+                    if (core < 0) core = 0;
+                    if (memory < 0) memory = 0;
+                    if (clock_limit < 0) clock_limit = NvidiaGpuControl.MaxClockLimit;
+                }
                 //if ((gpu_core > -5 && gpu_core < 5) && (gpu_memory > -5 && gpu_memory < 5)) launchAsAdmin = false;
 
                 if (Program.acpi.DeviceGet(AsusACPI.GPUEco) == 1) { Logger.WriteLine("Clocks: Eco"); return; }
@@ -702,9 +710,12 @@ namespace GHelper.Mode
                 }
                 else voltage = AppConfig.GetMode("gpu_voltage");
 
-                if (reset) { /* unlock below */ }
-                else if (voltage == -1) return;
-                else if (!force && !reset && ShouldSkipVoltageAutoApply(voltage)) return;
+                // Unset means stock for this mode: unlock the driver instead
+                // of leaving another mode's lock on it. The crash guard below
+                // only protects saved locks; an unlock is always safe.
+                if (voltage < 0) voltage = 0;
+
+                if (!reset && !force && voltage > 0 && ShouldSkipVoltageAutoApply(voltage)) return;
 
                 if (Program.acpi.DeviceGet(AsusACPI.GPUEco) == 1) { Logger.WriteLine("Voltage: Eco"); return; }
                 if (HardwareControl.GpuControl is null) { Logger.WriteLine("Voltage: NoGPUControl"); return; }
@@ -721,7 +732,13 @@ namespace GHelper.Mode
                     var (locked, mv) = nvControl.GetVoltageLock();
                     bool mirror = locked && clockLimit > 0 && clockLimit < NvidiaGpuControl.MaxClockLimit
                         && Math.Abs(mv - clockLimit) <= 5;
-                    if (locked && !mirror && mv == voltage) return;
+                    if (voltage == 0)
+                    {
+                        // Stock for this mode: nothing to do while the driver
+                        // holds no real lock (a cap-mirroring entry is not one).
+                        if (!locked || mirror) return;
+                    }
+                    else if (locked && !mirror && mv == voltage) return;
                     rewrite = true;
                 }
                 try

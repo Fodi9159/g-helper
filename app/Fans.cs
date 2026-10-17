@@ -818,8 +818,11 @@ namespace GHelper
                 if (isGPUPower) AppConfig.SetMode("gpu_power", trackGPUPower.Value);
 
                 modeControl.SetGPUPower();
-                modeControl.SetGPUClocks(true);
+                // Voltage first: a stock (unlocked) voltage may run
+                // nvidia-smi -rgc to clear stale locks, which would wipe a
+                // clock cap applied just before it.
                 modeControl.SetGPUVoltage(true, false, true);
+                modeControl.SetGPUClocks(true);
             }
             finally
             {
@@ -849,7 +852,15 @@ namespace GHelper
                 Logger.WriteLine($"ReadGPUPower ({Modes.GetCurrentBase()}): {gpuPowerBase} + {gpuPowerVar}");
 
                 int gpu_power = AppConfig.GetMode("gpu_power");
-                if (gpu_power < 0) gpu_power = (gpuPowerVar >= 0) ? gpuPowerVar : AsusACPI.MaxGPUPower;
+                if (gpu_power < 0)
+                {
+                    // No saved value for this mode: this mode's own OEM stock
+                    // first (captured before any custom write), not the live
+                    // EC read - the live read is whatever mode's slider wrote
+                    // last if the mode switch hasn't landed yet.
+                    int oem = ModeControl.GetOemGpuTgpForMode(Modes.GetCurrentBase());
+                    gpu_power = oem >= 0 ? oem : (gpuPowerVar >= 0 ? gpuPowerVar : AsusACPI.MaxGPUPower);
+                }
 
                 Invoke(delegate
                 {
@@ -885,6 +896,12 @@ namespace GHelper
                     int gpu_boost = AppConfig.GetMode("gpu_boost");
                     int gpu_temp = AppConfig.GetMode("gpu_temp");
 
+                    // Per-mode config is the authority for every slider: a mode
+                    // with no saved value means stock for that mode, never
+                    // "what the driver has right now" - that state belongs to
+                    // the mode whose sliders wrote it (see SetGPUClocks /
+                    // SetGPUVoltage). Live reads are only used to park a
+                    // stock-state voltage thumb so it does not jump around.
                     int core = AppConfig.GetMode("gpu_core");
                     int memory = AppConfig.GetMode("gpu_memory");
                     int clock_limit = AppConfig.GetMode("gpu_clock_limit");
@@ -905,9 +922,9 @@ namespace GHelper
                     if (gpu_boost < 0) gpu_boost = ModeControl.GetOemGpuBoostForMode(Modes.GetCurrentBase());
                     if (gpu_temp < 0) gpu_temp = ModeControl.GetOemGpuTempForMode(Modes.GetCurrentBase());
 
-                    if (core == -1) core = 0;
-                    if (memory == -1) memory = 0;
-                    if (clock_limit == -1) clock_limit = NvidiaGpuControl.MaxClockLimit;
+                    if (core < 0) core = 0;
+                    if (memory < 0) memory = 0;
+                    if (clock_limit < 0) clock_limit = NvidiaGpuControl.MaxClockLimit;
 
                     string? gpuName = null;
 
@@ -916,37 +933,22 @@ namespace GHelper
 
                     if (nvControl is not null)
                     {
-                        if (nvControl.GetClocks(out int current_core, out int current_memory))
-                        {
-                            core = current_core;
-                            memory = current_memory;
-                        }
-
                         stock = nvControl.GetStockVoltage();
-                        int live = nvControl.GetLiveVoltage();
-                        int park = live > 0 ? live : NvidiaGpuControl.MinVoltage;
 
-                        // Prefer the live driver state, like the other sliders: a failed
-                        // apply (e.g. no admin rights) or a lock left over from another
-                        // mode must not be shown as the current limit.
-                        var (drvLocked, drvMv) = nvControl.GetVoltageLock();
-                        // A configured clock cap mirrors into the same driver struct: if the
-                        // read-back value matches the cap, it is the cap, not a voltage lock.
-                        bool mirror = drvLocked && clock_limit > 0 && clock_limit < NvidiaGpuControl.MaxClockLimit
-                            && Math.Abs(drvMv - clock_limit) <= 5;
-                        if (drvLocked && !mirror)
+                        // A saved value is this mode's own lock. No saved value
+                        // (or a stale out-of-range one) is stock: the thumb is
+                        // parked on a live reading - CommitVoltage clears a
+                        // parked position instead of turning it into a lock.
+                        locked = voltage > 0
+                            && voltage >= NvidiaGpuControl.MinVoltage && voltage <= NvidiaGpuControl.MaxVoltage
+                            && (stock <= 0 || voltage != stock);
+
+                        if (!locked)
                         {
-                            voltage = drvMv;
-                            locked = stock <= 0 || drvMv != stock;
-                        }
-                        else
-                        {
-                            // Fallback to per-mode config intent when the driver reports
-                            // no voltage lock (or the read itself is unavailable).
-                            locked = voltage > 0 && (stock <= 0 || voltage != stock);
-                            if (voltage < 0) voltage = stock > 0 ? stock : park;
-                            if (voltage > NvidiaGpuControl.MaxVoltage) { voltage = stock > 0 ? stock : park; locked = false; } // heal stale over-range values
-                            if (voltage > 0 && voltage < NvidiaGpuControl.MinVoltage) { voltage = stock > 0 ? stock : park; locked = false; } // heal stale under-range values
+                            if (voltage > 0)
+                                Logger.WriteLine($"Voltage: stale saved value {voltage} mV is out of range, showing stock");
+                            int live = nvControl.GetLiveVoltage();
+                            voltage = live > 0 ? live : (stock > 0 ? stock : NvidiaGpuControl.MinVoltage);
                         }
 
                         try { gpuName = nvControl.FullName; } catch { }
@@ -956,6 +958,10 @@ namespace GHelper
                         if (voltage < 0) voltage = NvidiaGpuControl.MinVoltage;
                         if (clock_limit < 0) clock_limit = NvidiaGpuControl.MaxClockLimit;
                     }
+
+                    // One line per init: which per-mode values the sliders show
+                    // (voltage "stock" = no saved lock for this mode).
+                    Logger.WriteLine($"GPU {Modes.GetCurrentName()}: core={core} memory={memory} cap={clock_limit} voltage={(locked ? voltage + " mV" : "stock")}");
 
                     bool boostVisible = Program.acpi.IsSupported(AsusACPI.PPT_GPUC0);
                     bool tempVisible = Program.acpi.IsSupported(AsusACPI.PPT_GPUC2);
