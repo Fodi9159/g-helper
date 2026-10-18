@@ -561,12 +561,14 @@ namespace GHelper
         {
             CommitClockLimit();
             CommitGpuOffsets();
+            AppConfig.SetMode("gpu_lock", NvidiaGpuControl.GpuLockCap);
             modeControl.SetGPUClocks(true);
         }
 
         void ApplyGpuVoltage()
         {
             CommitVoltage();
+            AppConfig.SetMode("gpu_lock", NvidiaGpuControl.GpuLockVoltage);
             modeControl.SetGPUVoltage(true, false, true);
         }
 
@@ -753,6 +755,7 @@ namespace GHelper
         {
             CommitClockLimit();
             CommitGpuOffsets();
+            AppConfig.SetMode("gpu_lock", NvidiaGpuControl.GpuLockCap);
             modeControl.SetGPUClocks(true);
         }
 
@@ -760,18 +763,21 @@ namespace GHelper
         {
             CommitClockLimit();
             CommitGpuOffsets();
+            AppConfig.SetMode("gpu_lock", NvidiaGpuControl.GpuLockCap);
             modeControl.SetGPUClocks(true);
         }
 
         private void TrackGPUVoltage_MouseUp(object? sender, MouseEventArgs e)
         {
             CommitVoltage();
+            AppConfig.SetMode("gpu_lock", NvidiaGpuControl.GpuLockVoltage);
             modeControl.SetGPUVoltage(true, false, true);
         }
 
         private void TrackGPUVoltage_KeyUp(object? sender, KeyEventArgs e)
         {
             CommitVoltage();
+            AppConfig.SetMode("gpu_lock", NvidiaGpuControl.GpuLockVoltage);
             modeControl.SetGPUVoltage(true, false, true);
         }
 
@@ -780,6 +786,9 @@ namespace GHelper
             AppConfig.RemoveMode("gpu_voltage");
             AppConfig.RemoveMode("gpu_voltage_pending");
             AppConfig.RemoveMode("gpu_voltage_pending_time");
+            // Stock voltage chosen: the clock cap takes the slot back when one
+            // is configured (GetChosenGpuLock falls back to it).
+            AppConfig.SetMode("gpu_lock", NvidiaGpuControl.GpuLockVoltage);
             AppConfig.Flush();
             _gpuVoltageLocked = false;
             VisualiseGPUSettings();
@@ -818,10 +827,16 @@ namespace GHelper
                 if (isGPUPower) AppConfig.SetMode("gpu_power", trackGPUPower.Value);
 
                 modeControl.SetGPUPower();
-                // Voltage first: a stock (unlocked) voltage may run
-                // nvidia-smi -rgc to clear stale locks, which would wipe a
-                // clock cap applied just before it.
-                modeControl.SetGPUVoltage(true, false, true);
+                // Voltage first, then clocks: a stock (unlocked) voltage write
+                // clears the shared boost-lock slot, so the clock cap must be
+                // (re-)asserted after it. SetMaxGPUClock verifies the driver's
+                // live state, so a cap the driver dropped is rewritten too.
+                // When the cap is the lock chosen last, skip the voltage write
+                // entirely: -lgc replaces whatever holds the slot (a stale
+                // voltage lock included), and a racing voltage write could
+                // otherwise land after the cap and win.
+                if (NvidiaGpuControl.GetChosenGpuLock() != NvidiaGpuControl.GpuLockCap)
+                    modeControl.SetGPUVoltage(true, false, true);
                 modeControl.SetGPUClocks(true);
             }
             finally
@@ -1452,6 +1467,7 @@ namespace GHelper
             AppConfig.RemoveMode("gpu_core");
             AppConfig.RemoveMode("gpu_memory");
             AppConfig.RemoveMode("gpu_clock_limit");
+            AppConfig.RemoveMode("gpu_lock");
             AppConfig.RemoveMode("gpu_voltage");
             AppConfig.RemoveMode("gpu_voltage_pending");
             AppConfig.RemoveMode("gpu_voltage_pending_time");

@@ -725,20 +725,25 @@ namespace GHelper.Mode
                 bool rewrite = force;
                 if (!reset && !rewrite)
                 {
+                    // The clock cap is the lock set most recently: the shared
+                    // slot belongs to the cap path, and rewriting the voltage
+                    // here would ping-pong with it every tick. Touching the
+                    // voltage slider (or stocking the cap) switches back.
+                    if (NvidiaGpuControl.GetChosenGpuLock() == NvidiaGpuControl.GpuLockCap) return;
                     // Live check: a stale _lastVoltage cache must not mask a lock
                     // the driver dropped mid-session (game load, sleep, TDR,
-                    // service restart). Rewrite when the driver drifted.
-                    int clockLimit = AppConfig.GetMode("gpu_clock_limit");
+                    // service restart). Rewrite when the driver drifted. Only a
+                    // Manual lock counts: an nvidia-smi clock cap reports a
+                    // different lock mode in the shared slot and never masks
+                    // as a voltage lock.
                     var (locked, mv) = nvControl.GetVoltageLock();
-                    bool mirror = locked && clockLimit > 0 && clockLimit < NvidiaGpuControl.MaxClockLimit
-                        && Math.Abs(mv - clockLimit) <= 5;
                     if (voltage == 0)
                     {
                         // Stock for this mode: nothing to do while the driver
-                        // holds no real lock (a cap-mirroring entry is not one).
-                        if (!locked || mirror) return;
+                        // holds no voltage lock.
+                        if (!locked) return;
                     }
-                    else if (locked && !mirror && mv == voltage) return;
+                    else if (locked && mv == voltage) return;
                     rewrite = true;
                 }
                 try

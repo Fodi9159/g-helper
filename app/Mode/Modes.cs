@@ -26,6 +26,7 @@
             { "gpu_memory", "int" },
             { "gpu_voltage", "int" },
             { "gpu_clock_limit", "int" },
+            { "gpu_lock", "int" },
             { "cpu_temp", "_" },
             { "cpu_uv", "_" },
             { "cpu_uv_cores", "_" },

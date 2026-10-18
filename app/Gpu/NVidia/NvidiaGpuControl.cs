@@ -321,8 +321,9 @@ public class NvidiaGpuControl : IGpuControl
 
     // Current voltage lock straight from the driver: (locked, mV).
     // (false, -1) when unlocked, when the read fails (e.g. missing privilege),
-    // or when the value is outside the voltage range (a clock cap mirrors into
-    // this same struct with MHz-scale values, and unlocked it reports live voltage).
+    // or when the value is outside the voltage range. Only ClockLockMode.Manual
+    // counts: that is what an NVAPI voltage lock writes, while an nvidia-smi
+    // clock cap reports mode 2 in the same slot, so a cap never masks as a lock.
     // LockMode is the authority, not the value.
     public (bool locked, int mv) GetVoltageLock()
     {
@@ -346,13 +347,23 @@ public class NvidiaGpuControl : IGpuControl
         }
     }
 
-    // NOTE: the driver's boost-lock struct is shared between the clock cap (nvidia-smi -lgc)
-    // and the voltage lock: a cap at or below the voltage max is indistinguishable from a
-    // voltage lock of the same number, and unlocked it reports live voltage. So the clock
-    // slider never reads it back, and the voltage slider only trusts a read-back value that
-    // is in range, in Manual mode, and doesn't match the configured clock cap (see InitGPU).
+    // The Graphics boost-lock slot (NvAPI GPU Get/SetClockBoostLock) is shared by the
+    // clock cap and the voltage lock - one entry per domain, so both cannot coexist and
+    // the last write wins. The app tracks which control the user touched last in
+    // "gpu_lock" (per mode) and enforces only that lock, so the re-apply tick cannot
+    // ping-pong between the two. Verified live on an RTX 2060:
+    //   mode 0 (None):                          no lock
+    //   mode 2, value in the volt field (MHz):  nvidia-smi -lgc / -rgc clock cap
+    //   mode 3 (Manual), value in mV:           NVAPI voltage lock; an NVAPI unlock
+    //                                           write clears it and any cap mirror
+    // LockMode is the authority: a cap never reads as Manual, so it cannot mask a
+    // voltage lock. _lastLimitCmd is only a fallback for when the live read fails.
+    private const ClockLockMode ClockLockModeCap = (ClockLockMode)2;
+    public const int GpuLockCap = 0;     // "gpu_lock": the clock cap slider was touched last
+    public const int GpuLockVoltage = 1; // "gpu_lock": the voltage slider was touched last
     private static string? _lastLimitCmd; // last nvidia-smi clock command, null = unknown
     private static int _lastVoltage = -1; // last applied voltage lock in mV, 0 = unlocked, -1 = unknown
+    private static bool _loggedCapDormant; // cap dormant behind a chosen voltage lock was logged already
 
     // Return codes: 1 = applied, 0 = noop, -1 = failed, -2 = needs admin (permission).
     // Only -2 should trigger a UAC relaunch; -1 is logged and ignored.
@@ -379,21 +390,99 @@ public class NvidiaGpuControl : IGpuControl
         return IsPermissionError(ex) ? NeedsAdmin : -1;
     }
 
+    // Live state of the Graphics boost-lock slot: mode as the driver reports it,
+    // value in MHz for a clock cap or mV for a voltage lock, and whether the read
+    // worked. On a failed read the caller falls back to the command cache.
+    private (bool ok, ClockLockMode mode, int value) ReadClockSlot()
+    {
+        try
+        {
+            var data = GPUApi.GetClockBoostLock(_internalGpu!.Handle);
+            var locks = data.ClockBoostLocks;
+            if (locks is null || !locks.Any(l => l.ClockDomain == PublicClockDomain.Graphics)) return (false, ClockLockMode.None, 0);
+            var entry = locks.First(l => l.ClockDomain == PublicClockDomain.Graphics);
+            return (true, entry.LockMode, (int)(entry.VoltageInMicroV / 1000));
+        }
+        catch (Exception ex)
+        {
+            Logger.WriteLine("GET GPU CLOCK SLOT: " + ex.Message);
+            return (false, ClockLockMode.None, 0);
+        }
+    }
+
+    // Which lock the shared slot belongs to for the current mode: the clock cap
+    // or the voltage lock, whichever control the user touched last (saved per
+    // mode as "gpu_lock"). When that choice's value is stock or unusable the
+    // other one takes over; with no recorded choice yet (-1, configs from
+    // before this setting existed) a configured voltage wins.
+    public static int GetChosenGpuLock()
+    {
+        int owner = AppConfig.GetMode("gpu_lock");
+        int clock = AppConfig.GetMode("gpu_clock_limit");
+        int voltage = AppConfig.GetMode("gpu_voltage");
+        bool capOk = clock >= MinClockLimit && clock < MaxClockLimit;
+        bool voltageOk = voltage >= MinVoltage && voltage <= MaxVoltage;
+        if (owner == GpuLockCap && capOk) return GpuLockCap;
+        if (owner == GpuLockVoltage && voltageOk) return GpuLockVoltage;
+        if (voltageOk) return GpuLockVoltage;
+        if (capOk) return GpuLockCap;
+        return -1;
+    }
+
     public int SetMaxGPUClock(int clock)
     {
-
         if (clock < MinClockLimit || clock >= MaxClockLimit) clock = 0;
 
         string cmd = clock > 0 ? $"nvidia-smi -lgc 0,{clock}" : $"nvidia-smi -rgc";
 
-        if (_lastLimitCmd == cmd) return 0;
-        _lastLimitCmd = cmd;
+        // Live check first: the driver can drop the cap on its own (game load,
+        // sleep, TDR, service restart), and a matching _lastLimitCmd would then
+        // block every re-apply forever. Only the driver's actual state may skip.
+        var (ok, mode, value) = ReadClockSlot();
+        if (ok)
+        {
+            bool capHeld = mode == ClockLockModeCap && value > 0;
+            if (clock > 0)
+            {
+                if (capHeld && Math.Abs(value - clock) <= 5)
+                {
+                    _lastLimitCmd = cmd;
+                    return 0;
+                }
+                if (GetChosenGpuLock() == GpuLockVoltage)
+                {
+                    // The voltage lock is the one set most recently: -lgc would
+                    // wipe it and every re-apply tick would then ping-pong between
+                    // the two. Leave it; touching the clock cap slider hands the
+                    // slot back to the cap.
+                    if (!_loggedCapDormant)
+                    {
+                        _loggedCapDormant = true;
+                        int mv = mode == ClockLockMode.Manual && value > 0 ? value : AppConfig.GetMode("gpu_voltage");
+                        Logger.WriteLine($"GPU LIMIT: cap {clock} MHz not applied - the voltage lock ({mv} mV) was set last; move the clock cap slider to switch the slot to the cap");
+                    }
+                    return 0;
+                }
+                // The cap is the chosen lock (or no voltage is configured):
+                // replace whatever is in the slot, a stale voltage lock included.
+            }
+            else
+            {
+                // Stock clocks wanted: only a cap needs -rgc; a voltage lock is
+                // not ours to touch (SetVoltage owns it).
+                if (!capHeld)
+                {
+                    _lastLimitCmd = cmd;
+                    return 0;
+                }
+            }
+        }
+        else if (_lastLimitCmd == cmd) return 0; // live read failed: keep the old cache behavior
 
+        _lastLimitCmd = cmd;
         Logger.WriteLine("GPU LIMIT: " + cmd);
         RunPowershellCommand(cmd);
         return 1;
-
-
     }
 
 
@@ -419,14 +508,11 @@ public class NvidiaGpuControl : IGpuControl
             Logger.WriteLine($"SET GPU VOLTAGE: {voltage}");
             GPUApi.SetClockBoostLock(internalGpu.Handle, data);
 
-            if (voltage == 0 && _lastVoltage != 0)
-            {
-                // Stale driver locks (e.g. from nvidia-smi caps mirroring into the boost-lock
-                // struct) are not always cleared by the NVAPI unlock: reset locked clocks too.
-                // Runs before any clock cap is (re-)applied by the caller.
-                RunPowershellCommand($"nvidia-smi -rgc");
-                _lastLimitCmd = $"nvidia-smi -rgc";
-            }
+            // The unlock write also clears a clock cap that nvidia-smi mirrored
+            // into the shared slot (verified live), so no -rgc follow-up is
+            // needed - and running one here would race the cap that
+            // SetGPUClocks applies right after. Keep the cap cache honest.
+            if (voltage == 0) _lastLimitCmd = null;
         }
         catch (Exception ex)
         {
