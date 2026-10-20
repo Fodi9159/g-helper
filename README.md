@@ -12,7 +12,7 @@
 > Keys / screen / theme
 > - 🎮 **F-row bindings** — F1–F11 actions incl. Bluetooth, CPU boost, Windows theme toggle (+Fn+F5)
 > - 🌗 **Fast Windows theme toggle** — light/dark switch without the lag
-> - 🟢 **FreeSync toggle + auto refresh on lid open** — from the screen panel
+> - 🟢 **Auto refresh on lid open** — from the screen panel
 >
 > Fixes & builds
 > - 🔧 **Fan sensor swap fix** — corrected CPU/GPU readings

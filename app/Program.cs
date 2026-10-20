@@ -380,7 +380,6 @@ namespace GHelper
             }
 
             ScreenControl.InitMiniled();
-            ScreenControl.InitFreeSync();
             VisualControl.InitBrightness();
 
             return true;
@@ -482,7 +481,7 @@ namespace GHelper
                 settingsForm.Top = screen.WorkingArea.Top > screen.Bounds.Top ? screen.WorkingArea.Top + 10 : screen.WorkingArea.Bottom - 10 - settingsForm.Height;
 
                 // Refresh from hardware before first paint, so buttons
-                // (FreeSync On/Off, etc.) already show the live state
+                // (Hz / HDR etc.) already show the live state
                 settingsForm.RefreshState();
 
                 settingsForm.Show();

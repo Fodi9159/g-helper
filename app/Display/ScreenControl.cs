@@ -159,32 +159,6 @@ namespace GHelper.Display
             }
         }
 
-        public static void InitFreeSync()
-        {
-            // Re-apply the saved FreeSync choice (like Adrenalin does) after boot/driver reset
-            int saved = AppConfig.Get("freesync");
-            if (saved < 0) return; // user never toggled it in G-Helper
-
-            var amd = HardwareControl.AmdDisplayControl;
-            if (amd is null || !amd.IsValid) return;
-
-            // current is an ADL use-case bitmask (0 = off, 1/2/4/7 = on variants),
-            // so compare booleans — not raw ints — or Adrenalin's "on" (7)
-            // would never equal saved "on" (1).
-            if (amd.TryGetFreeSyncState(out int current, out _, out _, out _, out _))
-            {
-                bool isOn = GHelper.Gpu.AMD.AmdGpuControl.IsFreeSyncOn(current);
-                bool wantOn = saved == 1;
-                Logger.WriteLine($"FreeSync init: current={current} (on={isOn}) saved={saved}");
-                if (isOn != wantOn)
-                {
-                    amd.SetFreeSync(wantOn);
-                    Logger.WriteLine($"FreeSync re-applied: {saved}");
-                    InitScreen();
-                }
-            }
-        }
-
         public static void SetHDRControl(int status = -1)
         {
             if (status >= 0)

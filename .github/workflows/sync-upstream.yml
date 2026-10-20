@@ -218,4 +218,4 @@ jobs:
           gh release create "$TAG" GHelper.zip \
             --repo "${{ github.repository }}" \
             --title "G-Helper $TAG" \
-            --notes "Auto-built from upstream [seerge/g-helper]($TAG) with custom fork patches (Windows mode, FreeSync toggle, fork auto-update)."
+            --notes "Auto-built from upstream [seerge/g-helper]($TAG) with custom fork patches (Windows mode, fork auto-update)."

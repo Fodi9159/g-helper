@@ -5,7 +5,6 @@ using GHelper.Battery;
 using GHelper.Display;
 using GHelper.Fan;
 using GHelper.Gpu;
-using GHelper.Gpu.AMD;
 using GHelper.Helpers;
 using GHelper.Input;
 using GHelper.Mode;
@@ -195,7 +194,6 @@ namespace GHelper
             buttonMiniled.Click += ButtonMiniled_Click;
             buttonFHD.Click += ButtonFHD_Click;
             buttonHDRControl.Click += ButtonHDRControl_Click;
-            buttonFreeSync.Click += ButtonFreeSync_Click;
 
             buttonQuit.Click += ButtonQuit_Click;
 
@@ -379,28 +377,6 @@ namespace GHelper
         private void ButtonHDRControl_Click(object? sender, EventArgs e)
         {
             ScreenControl.ToogleHDRControl();
-        }
-
-        private void ButtonFreeSync_Click(object? sender, EventArgs e)
-        {
-            var amdGpuControl = HardwareControl.AmdDisplayControl ?? HardwareControl.GpuControl as AmdGpuControl;
-            if (amdGpuControl is null) return;
-
-            if (!amdGpuControl.TryGetFreeSyncState(out int current, out _, out _, out _, out _)) return;
-
-            Logger.WriteLine($"FreeSync state before toggle: {current}");
-            bool enabled = !AmdGpuControl.IsFreeSyncOn(current);
-            bool ok = amdGpuControl.SetFreeSync(enabled);
-            Logger.WriteLine($"FreeSync toggle {(enabled ? "on" : "off")}: {(ok ? "OK" : "FAILED")}");
-            AppConfig.Set("freesync", enabled ? 1 : 0);
-
-            if (amdGpuControl.TryGetFreeSyncState(out int currentFreeSync, out _, out _, out _, out _))
-            {
-                bool isOn = AmdGpuControl.IsFreeSyncOn(currentFreeSync);
-                buttonFreeSync.Activated = isOn;
-                buttonFreeSync.Text = isOn ? "FreeSync On" : "FreeSync Off";
-                buttonFreeSync.BorderColor = colorStandard;
-            }
         }
 
         private void SliderBattery_ValueChanged(object? sender, EventArgs e)
@@ -1610,34 +1586,6 @@ namespace GHelper
 
             if (advancedColor) labelVisual.Text = Properties.Strings.VisualModesHDR;
 
-            var amdGpuControl = HardwareControl.AmdDisplayControl ?? HardwareControl.GpuControl as AmdGpuControl;
-
-            if (amdGpuControl is not null &&
-                amdGpuControl.TryGetFreeSyncState(out int currentFreeSync, out _, out _, out _, out _))
-            {
-                buttonFreeSync.Visible = true;
-                ButtonEnabled(buttonFreeSync, screenEnabled && !hdr);
-                bool isOn = AmdGpuControl.IsFreeSyncOn(currentFreeSync);
-                buttonFreeSync.Activated = isOn;
-                buttonFreeSync.Text = isOn ? "FreeSync On" : "FreeSync Off";
-                buttonFreeSync.BorderColor = colorStandard;
-            }
-            else
-            {
-                int savedFreeSync = AppConfig.Get("freesync");
-                if (savedFreeSync == 0 || savedFreeSync == 1)
-                {
-                    buttonFreeSync.Visible = true;
-                    ButtonEnabled(buttonFreeSync, screenEnabled && !hdr);
-                    buttonFreeSync.Activated = savedFreeSync > 0;
-                    buttonFreeSync.Text = savedFreeSync > 0 ? "FreeSync On" : "FreeSync Off";
-                    buttonFreeSync.BorderColor = colorStandard;
-                }
-                else
-                {
-                    buttonFreeSync.Visible = false;
-                }
-            }
             if (!screenEnabled) labelVisual.Text = Properties.Strings.VisualModesScreen;
 
             if (!screenEnabled || advancedColor)
@@ -2534,7 +2482,7 @@ namespace GHelper
                 // GPU mode buttons (Eco/Optimized/Standard/Ultimate) - re-reads ACPI eco/mux
                 Program.gpuControl.InitGPUMode();
 
-                // Screen buttons (Hz, miniLED, HDR, FHD) + FreeSync - re-reads ACPI + ADL2
+                // Screen buttons (Hz, miniLED, HDR, FHD) - re-reads ACPI + ADL2
                 ScreenControl.InitScreen();
 
                 // Keyboard backlight button
