@@ -106,6 +106,22 @@ namespace GHelper.Mode
 
         public void NotePowerTransition() => lastPowerChange = DateTime.Now;
 
+        // Sliders save their values to config on release; the hardware write
+        // happens only when the CPU/GPU tab's Apply button is pressed (or a
+        // mode switch re-applies the profile). While a mode carries edits that
+        // were never applied, the drift timer stays away from that group so a
+        // saved-but-unapplied value can't slip onto the machine in the
+        // background. The apply paths clear the flags themselves (AutoPower
+        // for power, ApplyAllGpuSettings / a mode switch for the GPU group).
+        private volatile bool _pendingPower;
+        private volatile bool _pendingGpu;
+        private bool _loggedPendingSkip;
+
+        public void NotePowerEdited() => _pendingPower = true;
+        public void NoteGpuEdited() => _pendingGpu = true;
+        public void ClearPowerPending() => _pendingPower = false;
+        public void ClearGpuPending() => _pendingGpu = false;
+
         // Conditional reapply: one live PM-table read per tick, then rewrite a
         // limit only when its live value no longer matches config (e.g. Renoir
         // resetting the temp limit under load). Values that can't be read fall
@@ -113,9 +129,20 @@ namespace GHelper.Mode
         // unapplied.
         public void ReapplyIfDrifted()
         {
-            bool applyPower = AppConfig.IsApplyPower();
-            bool applyGpu = AppConfig.IsApplyGPU();
-            if (!applyPower && !applyGpu) return;
+            bool applyPower = AppConfig.IsApplyPower() && !_pendingPower;
+            bool applyGpu = AppConfig.IsApplyGPU() && !_pendingGpu;
+
+            if (!applyPower && !applyGpu)
+            {
+                // Only comment on the edit gate, not on a plain disabled
+                // auto-apply switch. Once per session is enough.
+                if (!_loggedPendingSkip && (_pendingPower || _pendingGpu))
+                {
+                    _loggedPendingSkip = true;
+                    Logger.WriteLine("Drift re-apply paused: the CPU/GPU sliders have saved changes that were not applied yet (press Apply)");
+                }
+                return;
+            }
 
             if (applyPower)
             {
@@ -297,6 +324,9 @@ namespace GHelper.Mode
                     {
                         SetGPUVoltage();
                         SetGPUClocks();
+                        // This mode's saved GPU values are being applied;
+                        // unapplied slider edits may resume the drift check.
+                        _pendingGpu = false;
                     }
                     else Logger.WriteLine("GPU auto-apply disabled, skipping voltage/clocks");
 
@@ -465,6 +495,10 @@ namespace GHelper.Mode
 
             if (IsReapplyRyzenRequired())
                 Task.Delay(5000).ContinueWith(_ => { AutoRyzen(); ReadRyzenLimits(); });
+
+            // The saved limits are on the machine now: unapplied slider edits
+            // no longer hold the drift check back.
+            _pendingPower = false;
 
         }
 

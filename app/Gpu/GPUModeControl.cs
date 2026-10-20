@@ -221,6 +221,7 @@ namespace GHelper.Gpu
                     {
                         Program.modeControl.SetGPUVoltage(false);
                         Program.modeControl.SetGPUClocks(false);
+                        Program.modeControl.ClearGpuPending();
                     }
                 }
                 catch (Exception ex)

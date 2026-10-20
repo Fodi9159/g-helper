@@ -75,6 +75,7 @@ namespace GHelper
 
             labelRisky.Text = Properties.Strings.UndervoltingRisky;
             buttonApplyAdvanced.Text = Properties.Strings.Apply;
+            buttonApplyPower.Text = Properties.Strings.Apply;
             checkApplyUV.Text = Properties.Strings.AutoApply;
 
             buttonCalibrate.Text = Properties.Strings.Calibrate;
@@ -181,21 +182,8 @@ namespace GHelper
             trackGPUtoCPU.Scroll += TrackCross_Scroll;
             trackCPUTemp.Scroll += TrackCross_Scroll;
 
-            trackTotal.MouseUp += TrackPower_MouseUp;
-                        trackSlow.MouseUp += TrackPower_MouseUp;
-                        trackCPUCAP.MouseUp += TrackPower_MouseUp;
-                        trackCrossLoad.MouseUp += TrackPower_MouseUp;
-                        trackGPUtoCPU.MouseUp += TrackPower_MouseUp;
-                        trackCPUTemp.MouseUp += TrackPower_MouseUp;
-
-                        trackFast.KeyUp += TrackPower_KeyUp;
-                        trackCPU.KeyUp += TrackPower_KeyUp;
-                        trackTotal.KeyUp += TrackPower_KeyUp;
-                        trackSlow.KeyUp += TrackPower_KeyUp;
-                        trackCPUCAP.KeyUp += TrackPower_KeyUp;
-                        trackCrossLoad.KeyUp += TrackPower_KeyUp;
-                        trackGPUtoCPU.KeyUp += TrackPower_KeyUp;
-                        trackCPUTemp.KeyUp += TrackPower_KeyUp;
+            // Power sliders only save their values (SavePower); nothing is
+            // pushed to the hardware until the CPU tab's Apply button is used.
 
             checkApplyFans.Click += CheckApplyFans_Click;
             checkApplyPower.Click += CheckApplyPower_Click;
@@ -242,10 +230,6 @@ namespace GHelper
             buttonGPUVoltageDefault.Click += ButtonGPUVoltageDefault_Click;
             buttonGPUApply.Text = Properties.Strings.Apply;
             buttonGPUApply.Click += ButtonGPUApply_Click;
-
-            trackGPUBoost.MouseUp += TrackGPU_MouseUp;
-            trackGPUTemp.MouseUp += TrackGPU_MouseUp;
-            trackGPUPower.MouseUp += TrackGPU_MouseUp;
 
             trackHysteresisUp.Scroll += TrackHysteresis_Scroll;
             trackHysteresisDown.Scroll += TrackHysteresis_Scroll;
@@ -296,6 +280,7 @@ namespace GHelper
             trackTemp.Scroll += TrackUV_Scroll;
 
             buttonApplyAdvanced.Click += ButtonApplyAdvanced_Click;
+            buttonApplyPower.Click += ButtonApplyPower_Click;
             buttonReadLimits.Click += ButtonReadLimits_Click;
 
             buttonCPU.BorderColor = colorStandard;
@@ -339,21 +324,23 @@ namespace GHelper
             trackHysteresisDown.AccessibleName = labelHysteresisDown.Text;
 
             // manual value entry on click for every slider value label
-            EditableLabel(labelTotal, trackTotal, TrackTotal_Scroll, ApplyPowerLimits);
-            EditableLabel(labelSlow, trackSlow, TrackSlow_Scroll, ApplyPowerLimits);
-            EditableLabel(labelFast, trackFast, TrackFast_Scroll, ApplyPowerLimits);
-            EditableLabel(labelCPU, trackCPU, TrackCPU_Scroll, ApplyPowerLimits);
-            EditableLabel(labelCPUCAP, trackCPUCAP, TrackCPUCAP_Scroll, ApplyPowerLimits);
-            EditableLabel(labelCrossLoad, trackCrossLoad, TrackCross_Scroll, ApplyPowerLimits);
-            EditableLabel(labelGPUtoCPU, trackGPUtoCPU, TrackCross_Scroll, ApplyPowerLimits);
-            EditableLabel(labelCPUTemp, trackCPUTemp, TrackCross_Scroll, ApplyPowerLimits);
-            EditableLabel(labelGPUClockLimit, trackGPUClockLimit, trackGPUClockLimit_Scroll, ApplyGpuClocks);
-            EditableLabel(labelGPUVoltage, trackGPUVoltage, trackGPUVoltage_Scroll, ApplyGpuVoltage);
-            EditableLabel(labelGPUCore, trackGPUCore, trackGPU_Scroll, ApplyGpuClocks);
-            EditableLabel(labelGPUMemory, trackGPUMemory, trackGPU_Scroll, ApplyGpuClocks);
-            EditableLabel(labelGPUBoost, trackGPUBoost, trackGPUPower_Scroll, ApplyGpuPower);
-            EditableLabel(labelGPUTemp, trackGPUTemp, trackGPUPower_Scroll, ApplyGpuPower);
-            EditableLabel(labelGPUPower, trackGPUPower, trackGPUPower_Scroll, ApplyGpuPower);
+            // Value labels save through the sliders' commit handlers; none of
+            // them applies to the hardware - that stays on the Apply buttons.
+            EditableLabel(labelTotal, trackTotal, TrackTotal_Scroll);
+            EditableLabel(labelSlow, trackSlow, TrackSlow_Scroll);
+            EditableLabel(labelFast, trackFast, TrackFast_Scroll);
+            EditableLabel(labelCPU, trackCPU, TrackCPU_Scroll);
+            EditableLabel(labelCPUCAP, trackCPUCAP, TrackCPUCAP_Scroll);
+            EditableLabel(labelCrossLoad, trackCrossLoad, TrackCross_Scroll);
+            EditableLabel(labelGPUtoCPU, trackGPUtoCPU, TrackCross_Scroll);
+            EditableLabel(labelCPUTemp, trackCPUTemp, TrackCross_Scroll);
+            EditableLabel(labelGPUClockLimit, trackGPUClockLimit, (s, e) => SaveGpuClocks());
+            EditableLabel(labelGPUVoltage, trackGPUVoltage, (s, e) => SaveGpuVoltage());
+            EditableLabel(labelGPUCore, trackGPUCore, (s, e) => SaveGpuClocks());
+            EditableLabel(labelGPUMemory, trackGPUMemory, (s, e) => SaveGpuClocks());
+            EditableLabel(labelGPUBoost, trackGPUBoost, trackGPUPower_Scroll);
+            EditableLabel(labelGPUTemp, trackGPUTemp, trackGPUPower_Scroll);
+            EditableLabel(labelGPUPower, trackGPUPower, trackGPUPower_Scroll);
             EditableLabel(labelHysteresisUpValue, trackHysteresisUp, TrackHysteresis_Scroll, ApplyHysteresis);
             EditableLabel(labelHysteresisDownValue, trackHysteresisDown, TrackHysteresis_Scroll, ApplyHysteresis);
             EditableLabel(labelUV, trackUV, TrackUV_Scroll);
@@ -544,32 +531,46 @@ namespace GHelper
             edit.LostFocus += (sender, e) => EndEdit(true);
         }
 
-        // same "on release" behavior as the sliders' MouseUp/KeyUp handlers
-        void ApplyPowerLimits()
+        // CPU tab Apply: the only path that pushes the saved power limits to
+        // the hardware. Slider releases and label edits just save the values.
+        private void ButtonApplyPower_Click(object? sender, EventArgs e)
         {
-            Task.Run(() =>
+            buttonApplyPower.Enabled = false;
+            try
             {
-                modeControl.AutoPower(true);
-                if (AppConfig.IsApplyPower())
-                    ModeControl.SetReapplyEnabled(true);
-            });
+                Task.Run(() =>
+                {
+                    modeControl.AutoPower(true);
+                    if (AppConfig.IsApplyPower())
+                        ModeControl.SetReapplyEnabled(true);
+                });
+            }
+            finally
+            {
+                Task.Delay(1000).ContinueWith(_ =>
+                {
+                    try { BeginInvoke(delegate { buttonApplyPower.Enabled = true; }); } catch { }
+                });
+            }
         }
 
-        void ApplyGpuPower() => modeControl.SetGPUPower();
-
-        void ApplyGpuClocks()
+        // Save the clock group (cap + offsets) and record the cap as the
+        // chosen lock. Slider releases and label edits only save; the driver
+        // slot is written by the GPU tab's Apply button (or a mode switch).
+        void SaveGpuClocks()
         {
             CommitClockLimit();
             CommitGpuOffsets();
             AppConfig.SetMode("gpu_lock", NvidiaGpuControl.GpuLockCap);
-            modeControl.SetGPUClocks(true);
         }
 
-        void ApplyGpuVoltage()
+        // Same for the voltage group: preview first so the stock/not-stock
+        // flag is right, then commit the value. Hardware write stays on Apply.
+        void SaveGpuVoltage()
         {
+            PreviewVoltage();
             CommitVoltage();
             AppConfig.SetMode("gpu_lock", NvidiaGpuControl.GpuLockVoltage);
-            modeControl.SetGPUVoltage(true, false, true);
         }
 
         void ApplyHysteresis() => Program.acpi.SetFanHysteresis(trackHysteresisUp.Value, trackHysteresisDown.Value);
@@ -746,39 +747,24 @@ namespace GHelper
             modeControl.SetPerformanceMode((int)selectedMode);
         }
 
-        private void TrackGPU_MouseUp(object? sender, MouseEventArgs e)
-        {
-            modeControl.SetGPUPower();
-        }
-
         private void TrackGPUClocks_MouseUp(object? sender, MouseEventArgs e)
         {
-            CommitClockLimit();
-            CommitGpuOffsets();
-            AppConfig.SetMode("gpu_lock", NvidiaGpuControl.GpuLockCap);
-            modeControl.SetGPUClocks(true);
+            SaveGpuClocks();
         }
 
         private void TrackGPUClocks_KeyUp(object? sender, KeyEventArgs e)
         {
-            CommitClockLimit();
-            CommitGpuOffsets();
-            AppConfig.SetMode("gpu_lock", NvidiaGpuControl.GpuLockCap);
-            modeControl.SetGPUClocks(true);
+            SaveGpuClocks();
         }
 
         private void TrackGPUVoltage_MouseUp(object? sender, MouseEventArgs e)
         {
-            CommitVoltage();
-            AppConfig.SetMode("gpu_lock", NvidiaGpuControl.GpuLockVoltage);
-            modeControl.SetGPUVoltage(true, false, true);
+            SaveGpuVoltage();
         }
 
         private void TrackGPUVoltage_KeyUp(object? sender, KeyEventArgs e)
         {
-            CommitVoltage();
-            AppConfig.SetMode("gpu_lock", NvidiaGpuControl.GpuLockVoltage);
-            modeControl.SetGPUVoltage(true, false, true);
+            SaveGpuVoltage();
         }
 
         private void ButtonGPUVoltageDefault_Click(object? sender, EventArgs e)
@@ -838,6 +824,10 @@ namespace GHelper
                 if (NvidiaGpuControl.GetChosenGpuLock() != NvidiaGpuControl.GpuLockCap)
                     modeControl.SetGPUVoltage(true, false, true);
                 modeControl.SetGPUClocks(true);
+
+                // The saved GPU values are on the machine now; unapplied
+                // slider edits no longer hold the drift check back.
+                modeControl.ClearGpuPending();
             }
             finally
             {
@@ -1108,6 +1098,7 @@ namespace GHelper
             int maxClock = (int)Math.Round(trackGPUClockLimit.Value / 5f, MidpointRounding.AwayFromZero) * 5;
             if (trackGPUClockLimit.Value != maxClock) trackGPUClockLimit.Value = maxClock;
             AppConfig.SetMode("gpu_clock_limit", maxClock);
+            modeControl.NoteGpuEdited();
             VisualiseGPUSettings();
         }
 
@@ -1128,6 +1119,7 @@ namespace GHelper
         {
             int voltage = NvidiaGpuControl.SnapVoltage(trackGPUVoltage.Value);
             if (trackGPUVoltage.Value != voltage) trackGPUVoltage.Value = voltage;
+            modeControl.NoteGpuEdited();
             if (!_gpuVoltageLocked)
             {
                 // Stock state: the thumb is only parked at a live reading,
@@ -1188,6 +1180,7 @@ namespace GHelper
             SnapGpuOffsets();
             AppConfig.SetMode("gpu_core", trackGPUCore.Value);
             AppConfig.SetMode("gpu_memory", trackGPUMemory.Value);
+            modeControl.NoteGpuEdited();
             VisualiseGPUSettings();
         }
 
@@ -1306,27 +1299,6 @@ namespace GHelper
             FormPosition();
         }
 
-
-        private void TrackPower_MouseUp(object? sender, MouseEventArgs e)
-        {
-            Task.Run(() =>
-            {
-                modeControl.AutoPower(true);
-                if (AppConfig.IsApplyPower())
-                    ModeControl.SetReapplyEnabled(true);
-            });
-        }
-
-
-        private void TrackPower_KeyUp(object? sender, KeyEventArgs e)
-        {
-            Task.Run(() =>
-            {
-                modeControl.AutoPower(true);
-                if (AppConfig.IsApplyPower())
-                    ModeControl.SetReapplyEnabled(true);
-            });
-        }
 
         public void InitPowerPlan()
         {
@@ -1494,6 +1466,7 @@ namespace GHelper
             modeControl.SetGPUVoltage(false, true, true);
             modeControl.SetGPUClocks(false, true);
             modeControl.ResetGpuPower();
+            modeControl.ClearGpuPending();
 
             // Re-read the TGP after the reset, so the slider shows what the
             // machine is left with rather than the value being written.
@@ -1670,6 +1643,7 @@ namespace GHelper
                 {
                     if (trackTotal.Value > trackSlow.Value) trackSlow.Value = trackTotal.Value;
                     if (trackTotal.Value > trackFast.Value) trackFast.Value = trackTotal.Value;
+                    modeControl.NotePowerEdited();
                     SavePower();
                 }
 
@@ -1677,6 +1651,7 @@ namespace GHelper
         {
             if (trackSlow.Value < trackTotal.Value) trackTotal.Value = trackSlow.Value;
             if (trackSlow.Value > trackFast.Value) trackFast.Value = trackSlow.Value;
+            modeControl.NotePowerEdited();
             SavePower();
         }
 
@@ -1684,6 +1659,7 @@ namespace GHelper
         {
             if (trackFast.Value < trackSlow.Value) trackSlow.Value = trackFast.Value;
             if (trackFast.Value < trackTotal.Value) trackTotal.Value = trackFast.Value;
+            modeControl.NotePowerEdited();
             SavePower();
         }
 
@@ -1693,6 +1669,7 @@ namespace GHelper
                     trackSlow.Value = trackCPU.Value;
                     trackFast.Value = trackCPU.Value;
                     trackCPU.Value = trackCPU.Value;
+                    modeControl.NotePowerEdited();
                     SavePower();
                 }
 
@@ -1702,12 +1679,14 @@ namespace GHelper
                             trackSlow.Value = Math.Clamp(trackCPUCAP.Value, trackSlow.Minimum, trackSlow.Maximum);
                             trackFast.Value = Math.Clamp(trackCPUCAP.Value, trackFast.Minimum, trackFast.Maximum);
                             trackCPU.Value = Math.Clamp(trackCPUCAP.Value, trackCPU.Minimum, trackCPU.Maximum);
+                            modeControl.NotePowerEdited();
                             SavePower();
                         }
 
                 private void TrackCross_Scroll(object? sender, EventArgs e)
         {
             trackGPUtoCPU.Value -= trackGPUtoCPU.Value % AsusACPI.StepGPUtoCPU;
+            modeControl.NotePowerEdited();
             SavePower();
         }
 

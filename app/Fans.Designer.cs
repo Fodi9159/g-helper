@@ -179,6 +179,7 @@ namespace GHelper
             buttonGPUVoltageDefault = new RButton();
             panelGPUReapply = new Panel();
             buttonGPUApply = new RButton();
+            buttonApplyPower = new RButton();
             panelApplyGPU = new Panel();
             checkApplyGPU = new RCheckBox();
             panelTitleGPU = new Panel();
@@ -1120,6 +1121,7 @@ namespace GHelper
             // 
             panelApplyPower.AutoSize = true;
             panelApplyPower.Controls.Add(checkApplyPower);
+            panelApplyPower.Controls.Add(buttonApplyPower);
             panelApplyPower.Dock = DockStyle.Top;
             panelApplyPower.Location = new Point(0, 804);
             panelApplyPower.Name = "panelApplyPower";
@@ -1139,6 +1141,24 @@ namespace GHelper
             checkApplyPower.TabIndex = 45;
             checkApplyPower.Text = "Apply Power Limits";
             checkApplyPower.UseVisualStyleBackColor = false;
+            // 
+            // buttonApplyPower
+            // 
+            buttonApplyPower.Activated = false;
+            buttonApplyPower.BackColor = SystemColors.ControlLight;
+            buttonApplyPower.BorderColor = Color.Transparent;
+            buttonApplyPower.BorderRadius = 2;
+            buttonApplyPower.Dock = DockStyle.Top;
+            buttonApplyPower.FlatStyle = FlatStyle.Flat;
+            buttonApplyPower.Location = new Point(15, 15);
+            buttonApplyPower.Margin = new Padding(4, 2, 15, 15);
+            buttonApplyPower.Name = "buttonApplyPower";
+            buttonApplyPower.Secondary = true;
+            buttonApplyPower.Size = new Size(490, 50);
+            buttonApplyPower.TabIndex = 46;
+            buttonApplyPower.Text = "Apply";
+            buttonApplyPower.TextImageRelation = TextImageRelation.ImageBeforeText;
+            buttonApplyPower.UseVisualStyleBackColor = false;
             // 
             // panelCPU
             // 
@@ -2476,6 +2496,7 @@ namespace GHelper
         private RButton buttonGPUVoltageDefault;
         private Panel panelGPUReapply;
         private RButton buttonGPUApply;
+        private RButton buttonApplyPower;
         private Panel panelApplyGPU;
         private RCheckBox checkApplyGPU;
         private RButton buttonCalibrate;
