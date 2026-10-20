@@ -1048,7 +1048,7 @@ namespace GHelper
             panelScreen.Margin = new Padding(0);
             panelScreen.Name = "panelScreen";
             panelScreen.Padding = new Padding(20, 11, 20, 0);
-            panelScreen.Size = new Size(827, 247);
+            panelScreen.Size = new Size(827, 167);
             panelScreen.TabIndex = 2;
             panelScreen.TabStop = true;
             // 
@@ -1081,10 +1081,9 @@ namespace GHelper
             tableScreen.Location = new Point(20, 51);
             tableScreen.Margin = new Padding(8, 4, 8, 4);
             tableScreen.Name = "tableScreen";
-            tableScreen.RowCount = 2;
+            tableScreen.RowCount = 1;
             tableScreen.RowStyles.Add(new RowStyle(SizeType.Absolute, 80F));
-            tableScreen.RowStyles.Add(new RowStyle(SizeType.Absolute, 80F));
-            tableScreen.Size = new Size(787, 160);
+            tableScreen.Size = new Size(787, 80);
             tableScreen.TabIndex = 23;
             // 
             // buttonScreenAuto
