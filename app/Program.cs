@@ -217,7 +217,11 @@ namespace GHelper
                 case "uv":
                     Startup.ReScheduleAdmin();
                     settingsForm.FansToggle(2);
-                    modeControl.SetRyzen();
+                    // Forced: the elevated instance applies the saved values,
+                    // and the temperature limit has to be written even when it
+                    // is the default (the tracking of a fresh session can't
+                    // tell it apart from a limit applied earlier).
+                    modeControl.SetRyzen(false, true);
                     break;
                 case "colors":
                     Task.Run(async () =>

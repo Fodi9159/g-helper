@@ -840,10 +840,10 @@ namespace GHelper.Mode
 
         }
 
-        public SmuStatus? SetCPUTemp(int cpuTemp, bool log = false)
+        public SmuStatus? SetCPUTemp(int cpuTemp, bool log = false, bool force = false)
         {
             if (cpuTemp < CpuInfo.MinTemp || cpuTemp > CpuInfo.DefaultTemp) return null;
-            if (cpuTemp == CpuInfo.DefaultTemp && _cpuTemp == CpuInfo.DefaultTemp) return null;
+            if (!force && cpuTemp == CpuInfo.DefaultTemp && _cpuTemp == CpuInfo.DefaultTemp) return null;
 
             var smu = GetSmu();
             if (smu == null) return null;
@@ -881,7 +881,7 @@ namespace GHelper.Mode
             }
         }
 
-        public string SetRyzen(bool launchAsAdmin = false)
+        public string SetRyzen(bool launchAsAdmin = false, bool force = false)
         {
             if (!ProcessHelper.IsUserAdministrator())
             {
@@ -931,7 +931,7 @@ namespace GHelper.Mode
                     lines.AppendLine($"iGPU UV {igpuUV}: {s}");
                 }
 
-                SmuStatus? tempStatus = SetCPUTemp(cpuTemp, true);
+                SmuStatus? tempStatus = SetCPUTemp(cpuTemp, true, force);
                 if (tempStatus.HasValue) lines.AppendLine($"CPU Temp {cpuTemp}°C: {tempStatus}");
             }
             catch (Exception ex)
@@ -972,6 +972,17 @@ namespace GHelper.Mode
             if (_igpuUV != 0) SetUViGPU(0);
             if (_cpuTemp != CpuInfo.DefaultTemp) SetCPUTemp(CpuInfo.DefaultTemp, true);
             SetReapplyEnabled(AppConfig.IsApplyPower() || AppConfig.IsApplyGPU());
+        }
+
+        // Advanced tab Reset: the undervolting goes back to stock - no offset
+        // on the CPU / iGPU and the default temperature limit. The stock
+        // values are written explicitly instead of through the per-session
+        // tracking, so a value applied in an earlier session is cleared too.
+        public void ResetUV()
+        {
+            SetUV(0);
+            SetUViGPU(0);
+            SetCPUTemp(CpuInfo.DefaultTemp, true, true);
         }
 
         // Diagnostics only: log what the SMU reports now. Never feed this back
@@ -1063,6 +1074,11 @@ namespace GHelper.Mode
             {
                 Logger.WriteLine("ResetPower: failed to reset hardware limits: " + ex.Message);
             }
+
+            // The machine holds its own limits again, so the mode label must
+            // not show a custom wattage anymore.
+            customPower = 0;
+            SetModeLabel();
         }
 
         // OEM values the power limits return to. Shared by the config reset and

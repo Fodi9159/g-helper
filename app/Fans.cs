@@ -78,6 +78,9 @@ namespace GHelper
             buttonApplyPower.Text = Properties.Strings.Apply;
             checkApplyUV.Text = Properties.Strings.AutoApply;
 
+            buttonResetGPU.Text = Properties.Strings.Reset;
+            buttonResetAdvanced.Text = Properties.Strings.Reset;
+
             buttonCalibrate.Text = Properties.Strings.Calibrate;
 
             checkFanClamp.Text = Properties.Strings.ClampToGrid;
@@ -282,6 +285,9 @@ namespace GHelper
             buttonApplyAdvanced.Click += ButtonApplyAdvanced_Click;
             buttonApplyPower.Click += ButtonApplyPower_Click;
             buttonReadLimits.Click += ButtonReadLimits_Click;
+
+            buttonResetGPU.Click += ButtonResetGPU_Click;
+            buttonResetAdvanced.Click += ButtonResetAdvanced_Click;
 
             buttonCPU.BorderColor = colorStandard;
             buttonGPU.BorderColor = colorTurbo;
@@ -550,6 +556,81 @@ namespace GHelper
                 Task.Delay(1000).ContinueWith(_ =>
                 {
                     try { BeginInvoke(delegate { buttonApplyPower.Enabled = true; }); } catch { }
+                });
+            }
+        }
+
+        // GPU tab Reset: resets the settings of this tab only. The saved GPU
+        // tweaks of the current mode go away and the card is stocked again -
+        // no clock offsets, no clock cap, no voltage lock and the machine's
+        // own GPU boost / temp / TGP for this mode.
+        // There is no checkbox for this: unchecking "Apply GPU Settings"
+        // deliberately keeps the tweaks on the card.
+        private void ButtonResetGPU_Click(object? sender, EventArgs e)
+        {
+            buttonResetGPU.Enabled = false;
+            try
+            {
+                ResetGpuSettings();
+
+                Logger.WriteLine("GPU tab reset: GPU settings back to OEM defaults");
+            }
+            finally
+            {
+                Task.Delay(1000).ContinueWith(_ =>
+                {
+                    try { BeginInvoke(delegate { buttonResetGPU.Enabled = true; }); } catch { }
+                });
+            }
+        }
+
+        // Advanced tab Reset: resets the settings of this tab only. The
+        // undervolting goes back to stock - no offset on the CPU / iGPU and
+        // the default temperature limit - on the sliders, in the config and
+        // on the hardware.
+        // There is no checkbox for this: unchecking "Auto Apply" only stops
+        // the re-applying, the undervolt stays on the machine until the next
+        // mode switch.
+        private void ButtonResetAdvanced_Click(object? sender, EventArgs e)
+        {
+            buttonResetAdvanced.Enabled = false;
+            try
+            {
+                trackUV.Value = CpuInfo.MaxCPUUV;
+                trackUViGPU.Value = CpuInfo.MaxIGPUUV;
+                trackTemp.Value = CpuInfo.DefaultTemp;
+
+                // Saved values: the stock ones, so a mode switch doesn't bring
+                // the undervolt back. The apply flags stay as the user left
+                // them, the reset only reverts the values.
+                AppConfig.SetMode("cpu_temp", trackTemp.Value);
+                AppConfig.SetMode("cpu_uv", trackUV.Value);
+                AppConfig.SetMode("igpu_uv", trackUViGPU.Value);
+                AppConfig.RemoveMode("cpu_uv_cores");
+
+                VisualiseAdvanced();
+
+                if (!ProcessHelper.IsUserAdministrator())
+                {
+                    // The SMU writes need Administrator: an elevated instance
+                    // applies the (now stock) saved values.
+                    ProcessHelper.RunAsAdmin("uv");
+                    return;
+                }
+
+                // The SMU writes can take a moment: keep them off the UI
+                // thread, like the Apply button does.
+                Task.Run(() =>
+                {
+                    modeControl.ResetUV();
+                    Logger.WriteLine("Advanced tab reset: undervolting back to stock");
+                });
+            }
+            finally
+            {
+                Task.Delay(1000).ContinueWith(_ =>
+                {
+                    try { BeginInvoke(delegate { buttonResetAdvanced.Enabled = true; }); } catch { }
                 });
             }
         }

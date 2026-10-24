@@ -180,6 +180,10 @@ namespace GHelper
             panelGPUReapply = new Panel();
             buttonGPUApply = new RButton();
             buttonApplyPower = new RButton();
+            panelResetGPU = new Panel();
+            buttonResetGPU = new RButton();
+            panelResetAdvanced = new Panel();
+            buttonResetAdvanced = new RButton();
             panelApplyGPU = new Panel();
             checkApplyGPU = new RCheckBox();
             panelTitleGPU = new Panel();
@@ -223,6 +227,8 @@ namespace GHelper
             panelPawnIO.SuspendLayout();
             panelPower.SuspendLayout();
             panelApplyPower.SuspendLayout();
+            panelResetGPU.SuspendLayout();
+            panelResetAdvanced.SuspendLayout();
             panelCPU.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)trackCPU).BeginInit();
             panelFast.SuspendLayout();
@@ -819,6 +825,35 @@ namespace GHelper
             buttonReadLimits.TextImageRelation = TextImageRelation.ImageBeforeText;
             buttonReadLimits.UseVisualStyleBackColor = false;
             //
+            // panelResetAdvanced
+            //
+            panelResetAdvanced.AutoSize = true;
+            panelResetAdvanced.Controls.Add(buttonResetAdvanced);
+            panelResetAdvanced.Dock = DockStyle.Top;
+            panelResetAdvanced.Location = new Point(0, 0);
+            panelResetAdvanced.Name = "panelResetAdvanced";
+            panelResetAdvanced.Padding = new Padding(15);
+            panelResetAdvanced.Size = new Size(520, 80);
+            panelResetAdvanced.TabIndex = 9;
+            //
+            // buttonResetAdvanced
+            //
+            buttonResetAdvanced.Activated = false;
+            buttonResetAdvanced.BackColor = SystemColors.ControlLight;
+            buttonResetAdvanced.BorderColor = Color.Transparent;
+            buttonResetAdvanced.BorderRadius = 2;
+            buttonResetAdvanced.Dock = DockStyle.Top;
+            buttonResetAdvanced.FlatStyle = FlatStyle.Flat;
+            buttonResetAdvanced.Location = new Point(15, 15);
+            buttonResetAdvanced.Margin = new Padding(4, 2, 15, 15);
+            buttonResetAdvanced.Name = "buttonResetAdvanced";
+            buttonResetAdvanced.Secondary = true;
+            buttonResetAdvanced.Size = new Size(490, 50);
+            buttonResetAdvanced.TabIndex = 56;
+            buttonResetAdvanced.Text = "Reset";
+            buttonResetAdvanced.TextImageRelation = TextImageRelation.ImageBeforeText;
+            buttonResetAdvanced.UseVisualStyleBackColor = false;
+            //
             // labelRisky
             // 
             labelRisky.BackColor = Color.IndianRed;
@@ -1049,6 +1084,7 @@ namespace GHelper
             // 
             panelPawnIO.AutoSize = true;
             panelPawnIO.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            panelPawnIO.Controls.Add(panelResetAdvanced);
             panelPawnIO.Controls.Add(panelAdvancedReadLimits);
             panelPawnIO.Controls.Add(panelAdvancedAlways);
             panelPawnIO.Controls.Add(panelAdvancedApply);
@@ -1698,6 +1734,7 @@ namespace GHelper
             // panelGPU
             // 
             panelGPU.AutoSize = true;
+            panelGPU.Controls.Add(panelResetGPU);
             panelGPU.Controls.Add(panelApplyGPU);
             panelGPU.Controls.Add(panelGPUReapply);
             panelGPU.Controls.Add(panelGPUTemp);
@@ -2128,6 +2165,35 @@ namespace GHelper
             checkApplyGPU.Text = "Apply GPU Settings after Reboot";
             checkApplyGPU.UseVisualStyleBackColor = false;
             // 
+            // panelResetGPU
+            // 
+            panelResetGPU.AutoSize = true;
+            panelResetGPU.Controls.Add(buttonResetGPU);
+            panelResetGPU.Dock = DockStyle.Top;
+            panelResetGPU.Location = new Point(0, 0);
+            panelResetGPU.Name = "panelResetGPU";
+            panelResetGPU.Padding = new Padding(15);
+            panelResetGPU.Size = new Size(520, 80);
+            panelResetGPU.TabIndex = 9;
+            // 
+            // buttonResetGPU
+            // 
+            buttonResetGPU.Activated = false;
+            buttonResetGPU.BackColor = SystemColors.ControlLight;
+            buttonResetGPU.BorderColor = Color.Transparent;
+            buttonResetGPU.BorderRadius = 2;
+            buttonResetGPU.Dock = DockStyle.Top;
+            buttonResetGPU.FlatStyle = FlatStyle.Flat;
+            buttonResetGPU.Location = new Point(15, 15);
+            buttonResetGPU.Margin = new Padding(4, 2, 15, 15);
+            buttonResetGPU.Name = "buttonResetGPU";
+            buttonResetGPU.Secondary = true;
+            buttonResetGPU.Size = new Size(490, 50);
+            buttonResetGPU.TabIndex = 55;
+            buttonResetGPU.Text = "Reset";
+            buttonResetGPU.TextImageRelation = TextImageRelation.ImageBeforeText;
+            buttonResetGPU.UseVisualStyleBackColor = false;
+            // 
             // panelTitleGPU
             // 
             panelTitleGPU.AutoSize = true;
@@ -2315,6 +2381,8 @@ namespace GHelper
             panelPower.ResumeLayout(false);
             panelPower.PerformLayout();
             panelApplyPower.ResumeLayout(false);
+            panelResetGPU.ResumeLayout(false);
+            panelResetAdvanced.ResumeLayout(false);
             panelCPU.ResumeLayout(false);
             panelCPU.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)trackCPU).EndInit();
@@ -2533,5 +2601,9 @@ namespace GHelper
         private RTrackBar trackHysteresisDown;
         private Label labelHysteresisUpValue;
         private Label labelHysteresisDownValue;
+        private Panel panelResetGPU;
+        private RButton buttonResetGPU;
+        private Panel panelResetAdvanced;
+        private RButton buttonResetAdvanced;
     }
 }
