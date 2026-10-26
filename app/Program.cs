@@ -39,7 +39,6 @@ namespace GHelper
         public static int WM_TASKBARCREATED = 0;
 
         private static long lastAuto;
-        private static long lastTheme;
         private static readonly object autoLock = new();
 
         public static InputDispatcher? inputDispatcher;
@@ -287,12 +286,12 @@ namespace GHelper
 
         static void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
         {
-
-            if (Math.Abs(DateTimeOffset.Now.ToUnixTimeMilliseconds() - lastTheme) < 2000) return;
-
             switch (e.Category)
             {
                 case UserPreferenceCategory.General:
+                    // Windows notifies every mode change with an ImmersiveColorSet
+                    // broadcast. Apply it every time — InitTheme is a no-op when the
+                    // theme did not actually change.
                     bool changed = settingsForm.InitTheme();
                     settingsForm.InitContextMenuTheme();
                     settingsForm.VisualiseIcon(true);
@@ -303,7 +302,6 @@ namespace GHelper
                     if (changed)
                     {
                         Debug.WriteLine("Theme Changed");
-                        lastTheme = DateTimeOffset.Now.ToUnixTimeMilliseconds();
                     }
 
                     // The visible window is re-themed above; open sub-forms re-theme on the next

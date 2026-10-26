@@ -8,17 +8,9 @@ namespace GHelper.Helpers
 
         private const string PersonalizeKey = @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
 
-        // SPI_SETSYSTEMDARKMODE with SPIF_UPDATEINIFILE | SPIF_SENDCHANGE — what Settings sends for the Windows mode
-        private const uint SPI_SETSYSTEMDARKMODE = 0x005F;
-        private const uint SPIF_UPDATEINIFILE = 0x01;
-        private const uint SPIF_SENDCHANGE = 0x02;
-
         // WM_SETTINGCHANGE "ImmersiveColorSet" broadcast — what Settings sends so apps re-read the theme
         private const uint WM_SETTINGCHANGE = 0x001A;
         private const uint SMTO_ABORTIFHUNG = 0x0002;
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto)]
-        private static extern bool SystemParametersInfo(uint uiAction, uint uiParam, IntPtr pvParam, uint fWinIni);
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);
@@ -39,10 +31,10 @@ namespace GHelper.Helpers
             }
         }
 
-        // Serializes write -> SPI so two rapid toggles can't interleave and leave the
-        // registry and the actual system theme out of sync. The broadcast is intentionally
-        // outside the lock — it's notification-only, so a rapid second toggle must not
-        // queue behind the first toggle's system-wide broadcast.
+        // Serializes the two registry writes so two rapid toggles can't interleave and
+        // leave the registry out of sync. The broadcast is intentionally outside the
+        // lock — it's notification-only, so a rapid second toggle must not queue behind
+        // the first toggle's system-wide broadcast.
         private static readonly object themeLock = new();
 
         // Apps re-read the theme only when they receive the ImmersiveColorSet broadcast.
@@ -86,8 +78,9 @@ namespace GHelper.Helpers
                     Logger.WriteLine("Can't re-theme main form on switch: " + ex.Message);
                 }
 
-                // Toggle Windows mode the same way the Settings app does
-                SystemParametersInfo(SPI_SETSYSTEMDARKMODE, (uint)value, IntPtr.Zero, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+                // Windows Settings switches the mode by writing AppsUseLightTheme /
+                // SystemUsesLightTheme in HKCU. The visual switch happens when the
+                // ImmersiveColorSet broadcast arrives below.
             }
 
             // Broadcast so apps re-read the theme; outside the lock so a rapid second
