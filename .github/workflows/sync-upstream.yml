@@ -32,7 +32,7 @@ jobs:
             exit 0
           fi
           if git rev-parse -q --verify "refs/tags/$UPSTREAM_TAG" >/dev/null 2>&1; then
-            echo "Tag $UPSTREAM_TAG already released on fork — nothing to do"
+            echo "Tag $UPSTREAM_TAG already released on fork, nothing to do"
             echo "new_release=false" >> "$GITHUB_OUTPUT"
           else
             echo "New upstream release detected: $UPSTREAM_TAG"
@@ -73,7 +73,7 @@ jobs:
           # touched the same files. History is never rewritten: main only moves
           # forward, so local clones can always pull without conflicts.
           if ! git merge upstream/main -X ours --no-edit; then
-            echo "Merge stopped — resolving residual conflicts (add/delete on workflow files)"
+            echo "Merge stopped, resolving residual conflicts (add/delete on workflow files)"
             for i in 1 2 3 4 5; do
               UNRESOLVED=$(git diff --name-only --diff-filter=U)
               [ -z "$UNRESOLVED" ] && break
@@ -90,19 +90,19 @@ jobs:
           # verbatim and can clobber upstream additions in the same spots. This is the
           # list of known collisions; anything else is caught by the build gate below.
           #
-          # 1. AsusACPI.cs — the fork keeps this file identical to upstream. Its only
+          # 1. AsusACPI.cs: the fork keeps this file identical to upstream. Its only
           #    historical deviation (the PerformanceWindows constant) now matches
           #    upstream's PerformanceFullSpeed name, but the old "Add Windows mode"
           #    commit still carries the old name and would clobber upstream's enum.
           #    Force upstream's version.
           git checkout upstream/main -- app/AsusACPI.cs
 
-          # 2. Settings.cs — the same old commit re-adds the PerformanceWindows
+          # 2. Settings.cs: the same old commit re-adds the PerformanceWindows
           #    constant name; normalize it to upstream's PerformanceFullSpeed (same
           #    ACPI value 3, the UI label "Windows Mode" is unaffected).
           sed -i 's/AsusACPI\.PerformanceWindows/AsusACPI.PerformanceFullSpeed/g' app/Settings.cs
 
-          # 3. Settings.cs — the fork's "Windows mode" button code overlaps the spot
+          # 3. Settings.cs: the fork's "Windows mode" button code overlaps the spot
           #    where upstream later added the PictureGPU_Click handler, so the replay
           #    can drop it. Re-add the handler if it went missing.
           python - <<'PY'
@@ -154,7 +154,7 @@ jobs:
               --title "Custom code missing after upstream sync" \
               --body "The merge of upstream/main dropped custom fork code or an upstream symbol the fork relies on (Windows mode, fork auto-update URL, or the AsusACPI enum). The sync was **not** pushed. Fix locally with \`git fetch upstream && git merge upstream/main -X ours\` and push the fix, or update the marker checks in \`.github/workflows/sync-upstream.yml\`."
           fi
-          echo "Custom code missing — aborting sync"
+          echo "Custom code missing, aborting sync"
           exit 1
 
       - name: Bump version to upstream release
@@ -190,7 +190,7 @@ jobs:
               --title "Sync build failed after upstream rebase" \
               --body "The fork merged upstream/main but the code does not compile, so main was **not** pushed. Reproduce locally with \`git fetch upstream && git merge upstream/main -X ours\`, fix the compile errors, push the fix, then re-run this workflow via workflow_dispatch."
           fi
-          echo "Build failed — aborting without pushing main"
+          echo "Build failed, aborting without pushing main"
           exit 1
 
       - name: Push synced main

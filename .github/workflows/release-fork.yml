@@ -46,7 +46,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if gh release view "${{ inputs.tag }}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "Release ${{ inputs.tag }} already exists — aborting"
+            echo "Release ${{ inputs.tag }} already exists, aborting"
             exit 1
           fi
 
