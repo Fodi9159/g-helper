@@ -71,6 +71,7 @@ namespace GHelper.Helpers
                     {
                         Program.settingsForm.InitTheme();
                         Program.settingsForm.VisualiseIcon(true);
+                        Program.settingsForm.VisualiseTheme();
                     });
                 }
                 catch (Exception ex)

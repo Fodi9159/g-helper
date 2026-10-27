@@ -326,17 +326,23 @@ namespace GHelper
 
         private void ButtonLightMode_Click(object? sender, EventArgs e)
         {
-            // Theme switch blocks on a broadcast to every top-level window, keep it off the UI thread
-            Task.Run(() => ThemeControl.SetDark(false));
-            buttonLightMode.Activated = true;
-            buttonDarkMode.Activated = false;
+            SetTheme(false);
         }
 
         private void ButtonDarkMode_Click(object? sender, EventArgs e)
         {
-            Task.Run(() => ThemeControl.SetDark(true));
-            buttonDarkMode.Activated = true;
-            buttonLightMode.Activated = false;
+            SetTheme(true);
+        }
+
+        // Single entry point for every theme switch (main page buttons and key bindings alike).
+        // Feedback is immediate, while the actual Windows switch runs off the UI thread because
+        // it blocks on a broadcast to every top-level window.
+        public void SetTheme(bool dark)
+        {
+            if (InvokeRequired) { BeginInvoke(() => SetTheme(dark)); return; }
+            buttonDarkMode.Activated = dark;
+            buttonLightMode.Activated = !dark;
+            Task.Run(() => ThemeControl.SetDark(dark));
         }
 
         public void VisualiseTheme()

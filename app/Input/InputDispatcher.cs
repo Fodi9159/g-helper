@@ -785,12 +785,12 @@ namespace GHelper.Input
                     _ = BluetoothHelper.Toggle();
                     break;
                 case "darkmode":
-                    // Toast first — the switch itself blocks on a broadcast to every top-level
-                    // window, so waiting for it would make the OSD appear seconds late
+                    // Same path as the main page Light/Dark Mode buttons. Toast first — the switch
+                    // itself blocks on a broadcast to every top-level window, so waiting for it
+                    // would make the OSD appear seconds late.
                     bool dark = !ThemeControl.IsDark();
                     Program.toast.RunToast(Properties.Strings.DarkMode + " " + (dark ? Properties.Strings.On : Properties.Strings.Off));
-                    Task.Run(() => ThemeControl.SetDark(dark));
-                    Program.settingsForm.BeginInvoke(Program.settingsForm.VisualiseTheme);
+                    Program.settingsForm.SetTheme(dark);
                     break;
                 case "touchpad":
                     ToggleTouchpadEvent(true);
