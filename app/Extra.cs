@@ -74,10 +74,12 @@ namespace GHelper
                 case "m1":
                     customActions[""] = Properties.Strings.VolumeDown;
                     customActions.Remove("volume_down");
+                    customActions.Remove("volume_up");
                     break;
                 case "m2":
                     customActions[""] = Properties.Strings.VolumeUp;
                     customActions.Remove("volume_up");
+                    customActions.Remove("volume_down");
                     break;
                 case "m3":
                     customActions[""] = Properties.Strings.MuteMic;
@@ -257,12 +259,18 @@ namespace GHelper
                 labelM4.Text = "FN+F12";
             }
 
+            if (AppConfig.IsProArt())
+            {
+                labelFNC.Visible = comboFNC.Visible = textFNC.Visible = false;
+                labelFNV.Text = "FN+C";
+            }
+
             if (AppConfig.MediaKeys())
             {
                 labelFNF4.Visible = comboFNF4.Visible = textFNF4.Visible = false;
             }
 
-            if (!AppConfig.IsTUF())
+            if (!AppConfig.IsFNNumpad())
             {
                 labelFNE.Visible = comboFNE.Visible = textFNE.Visible = false;
             }

@@ -120,7 +120,6 @@ namespace GHelper.Input
         public static void InitFNLock()
         {
             if (!IsHardwareFnLock()) return;
-            AsusHid.InitInput();
             HardwareFnLock(AppConfig.Is("fn_lock"));
         }
 
@@ -176,7 +175,7 @@ namespace GHelper.Input
 
             if (!AppConfig.Is("skip_hotkeys"))
             {
-                if (AppConfig.IsDUO() || (AppConfig.IsVivoZenbook() && AppConfig.IsOLED()))
+                if (AppConfig.IsDUO() || (AppConfig.IsVivoZenPro() && AppConfig.IsOLED()))
                 {
                     hook.RegisterHotKey(keyModifierAlt, Keys.F7);
                     hook.RegisterHotKey(keyModifierAlt, Keys.F8);
