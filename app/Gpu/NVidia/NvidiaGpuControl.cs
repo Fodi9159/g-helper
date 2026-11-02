@@ -26,6 +26,15 @@ public class NvidiaGpuControl : IGpuControl
     public static int MinClockLimit = AppConfig.Get("min_gpu_clock", 400);
     public const int MaxClockLimit = 3000;
 
+    // Config value -1 means "unset" (stock for this mode). Every other value
+    // is a real offset - negative offsets are valid down to MinCoreOffset /
+    // MinMemoryOffset. Out-of-range stale values are clamped to the slider.
+    public static int NormalizeCoreOffset(int core) =>
+        core == -1 ? 0 : Math.Clamp(core, MinCoreOffset, MaxCoreOffset);
+
+    public static int NormalizeMemoryOffset(int memory) =>
+        memory == -1 ? 0 : Math.Clamp(memory, MinMemoryOffset, MaxMemoryOffset);
+
     private static PhysicalGPU? _internalGpu;
 
     public NvidiaGpuControl()

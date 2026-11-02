@@ -664,12 +664,12 @@ namespace GHelper.Mode
                 if (reset) core = memory = clock_limit = 0;
                 else
                 {
-                    // Unset means stock for this mode: zero offsets and the
-                    // default clock cap. This used to early-return, which
-                    // left whatever another mode's sliders had written on
-                    // the driver - exactly the cross-mode leak we're fixing.
-                    if (core < 0) core = 0;
-                    if (memory < 0) memory = 0;
+                    // Unset (-1) means stock for this mode: zero offsets and
+                    // the default clock cap. Valid negative offsets must stay
+                    // intact - clamping every negative value to 0 made the
+                    // memory/core offset sliders appear dead below zero.
+                    core = NvidiaGpuControl.NormalizeCoreOffset(core);
+                    memory = NvidiaGpuControl.NormalizeMemoryOffset(memory);
                     if (clock_limit < 0) clock_limit = NvidiaGpuControl.MaxClockLimit;
                 }
                 //if ((gpu_core > -5 && gpu_core < 5) && (gpu_memory > -5 && gpu_memory < 5)) launchAsAdmin = false;

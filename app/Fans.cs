@@ -340,10 +340,10 @@ namespace GHelper
             EditableLabel(labelCrossLoad, trackCrossLoad, TrackCross_Scroll);
             EditableLabel(labelGPUtoCPU, trackGPUtoCPU, TrackCross_Scroll);
             EditableLabel(labelCPUTemp, trackCPUTemp, TrackCross_Scroll);
-            EditableLabel(labelGPUClockLimit, trackGPUClockLimit, (s, e) => SaveGpuClocks());
+            EditableLabel(labelGPUClockLimit, trackGPUClockLimit, (s, e) => SaveGpuClocks(true));
             EditableLabel(labelGPUVoltage, trackGPUVoltage, (s, e) => SaveGpuVoltage());
-            EditableLabel(labelGPUCore, trackGPUCore, (s, e) => SaveGpuClocks());
-            EditableLabel(labelGPUMemory, trackGPUMemory, (s, e) => SaveGpuClocks());
+            EditableLabel(labelGPUCore, trackGPUCore, (s, e) => SaveGpuClocks(false));
+            EditableLabel(labelGPUMemory, trackGPUMemory, (s, e) => SaveGpuClocks(false));
             EditableLabel(labelGPUBoost, trackGPUBoost, trackGPUPower_Scroll);
             EditableLabel(labelGPUTemp, trackGPUTemp, trackGPUPower_Scroll);
             EditableLabel(labelGPUPower, trackGPUPower, trackGPUPower_Scroll);
@@ -635,14 +635,17 @@ namespace GHelper
             }
         }
 
-        // Save the clock group (cap + offsets) and record the cap as the
-        // chosen lock. Slider releases and label edits only save; the driver
-        // slot is written by the GPU tab's Apply button (or a mode switch).
-        void SaveGpuClocks()
+        // Save the clock group (cap + offsets). Slider releases and label
+        // edits only save; the driver slot is written by the GPU tab's Apply
+        // button (or a mode switch). Only the clock-limit control may claim
+        // the shared cap/voltage boost-lock slot: core and memory offsets are
+        // independent of that slot, so saving them must not disable an active
+        // voltage lock by reassigning the slot to the cap.
+        void SaveGpuClocks(bool chooseCap)
         {
             CommitClockLimit();
             CommitGpuOffsets();
-            AppConfig.SetMode("gpu_lock", NvidiaGpuControl.GpuLockCap);
+            if (chooseCap) AppConfig.SetMode("gpu_lock", NvidiaGpuControl.GpuLockCap);
         }
 
         // Same for the voltage group: preview first so the stock/not-stock
@@ -830,12 +833,12 @@ namespace GHelper
 
         private void TrackGPUClocks_MouseUp(object? sender, MouseEventArgs e)
         {
-            SaveGpuClocks();
+            SaveGpuClocks(sender == trackGPUClockLimit);
         }
 
         private void TrackGPUClocks_KeyUp(object? sender, KeyEventArgs e)
         {
-            SaveGpuClocks();
+            SaveGpuClocks(sender == trackGPUClockLimit);
         }
 
         private void TrackGPUVoltage_MouseUp(object? sender, MouseEventArgs e)
@@ -1008,8 +1011,12 @@ namespace GHelper
                     if (gpu_boost < 0) gpu_boost = ModeControl.GetOemGpuBoostForMode(Modes.GetCurrentBase());
                     if (gpu_temp < 0) gpu_temp = ModeControl.GetOemGpuTempForMode(Modes.GetCurrentBase());
 
-                    if (core < 0) core = 0;
-                    if (memory < 0) memory = 0;
+                    // Unset (-1) means stock for this mode; negative values
+                    // within the slider range are real offsets and must not
+                    // be flattened to 0 (that broke negative memory/core
+                    // offsets on every mode switch and app restart).
+                    core = NvidiaGpuControl.NormalizeCoreOffset(core);
+                    memory = NvidiaGpuControl.NormalizeMemoryOffset(memory);
                     if (clock_limit < 0) clock_limit = NvidiaGpuControl.MaxClockLimit;
 
                     string? gpuName = null;
