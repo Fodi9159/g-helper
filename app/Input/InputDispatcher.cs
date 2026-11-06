@@ -114,6 +114,7 @@ namespace GHelper.Input
             }
 
             InitBacklightTimer();
+            AmbientLight.Init();
             MuteLEDInit();
         }
 
