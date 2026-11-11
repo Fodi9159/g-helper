@@ -117,6 +117,7 @@ public class AsusACPI
     public const int PPT_CPUB0 = 0x001200B0;  // CPU PPT on 2022 (PPT_LIMIT_APU)
     public const int PPT_CPUB1 = 0x001200B1;  // Total PPT on 2022 (PPT_LIMIT_SLOW)
 
+    public const int PPT_TOTAL9A = 0x0012009A;  // Cross Loading on older NVIDIA models
     public const int PPT_GPUCPU9C = 0x0012009C;  // GPU to CPU Dynamic Boost, 5W steps
     public const int PPT_TEMP9E = 0x0012009E;  // CPU Temperature Limit
     public const int PPT_CROSS9F = 0x0012009F;  // Cross Loading Processor Power
@@ -890,13 +891,13 @@ public class AsusACPI
                     uint id = i + j;
                     byte[] buf = DeviceGetLarge(id);
                     uint head = BitConverter.ToUInt32(buf, 0);
-                    if ((head & 0x10000) == 0) continue;
 
                     bool extra = false;
                     for (int k = 4; k < buf.Length; k++)
                         if (buf[k] != 0) { extra = true; break; }
 
-                    if (extra)
+                    if (head == 0 && !extra) continue;
+                    if (extra || (head & 0x10000) == 0)
                     {
                         w.WriteLine(id.ToString("X8") + ": BUF " + BitConverter.ToString(buf));
                     }
