@@ -701,7 +701,7 @@ namespace GHelper.Input
                     KeyboardHook.KeyPress(Keys.MediaPlayPause);
                     break;
                 case "screenshot":
-                    KeyboardHook.KeyPress(Keys.Snapshot);
+                    SnippingTool.Open();
                     break;
                 case "lock":
                     Logger.WriteLine("Screen lock");
