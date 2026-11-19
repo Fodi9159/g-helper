@@ -122,6 +122,16 @@ namespace GHelper.Peripherals.Keyboard
             new KeyDef[] { new("Ctrl", 1.25f, 0.0f), new("Win", 1.25f, 0.0f), new("Alt", 1.25f, 0.0f), new("Space", 6.25f, 0.0f), new("Right Alt"), new("Fn"), new("Right Ctrl"), new("←"), new("↓"), new("→") },
         };
 
+        private static readonly List<KeyDef[]> FalchionAce75Rows = new()
+        {
+            new KeyDef[] { new("Esc"), new("F1", 1f, 0.25f), new("F2"), new("F3"), new("F4"), new("F5", 1f, 0.25f), new("F6"), new("F7"), new("F8"), new("F9", 1f, 0.25f), new("F10"), new("F11"), new("F12"), new("Home", 1f, 0.25f), new("End") },
+            new KeyDef[] { new("`"), new("1"), new("2"), new("3"), new("4"), new("5"), new("6"), new("7"), new("8"), new("9"), new("0"), new("-"), new("="), new("Bksp", 2f, 0.0f), new("Ins") },
+            new KeyDef[] { new("Tab", 1.5f, 0.0f), new("Q"), new("W"), new("E"), new("R"), new("T"), new("Y"), new("U"), new("I"), new("O"), new("P"), new("["), new("]"), new("\\", 1.5f, 0.0f), new("Del") },
+            new KeyDef[] { new("Caps", 1.75f, 0.0f), new("A"), new("S"), new("D"), new("F"), new("G"), new("H"), new("J"), new("K"), new("L"), new(";"), new("'"), new("Enter", 2.25f, 0.0f), new("Pg Up") },
+            new KeyDef[] { new("Shift", 2.25f, 0.0f), new("Z"), new("X"), new("C"), new("V"), new("B"), new("N"), new("M"), new(","), new("."), new("/"), new("Right Shift", 1.75f, 0.0f), new("↑"), new("Pg Dn") },
+            new KeyDef[] { new("Ctrl", 1.25f, 0.0f), new("Win", 1.25f, 0.0f), new("Alt", 1.25f, 0.0f), new("Space", 6.25f, 0.0f), new("Right Alt"), new("Fn"), new("Copilot"), new("←"), new("↓"), new("→") },
+        };
+
         private static readonly List<KeyDef[]> AzothRows = new()
         {
             new KeyDef[] { new("Esc"), new("F1"), new("F2"), new("F3"), new("F4"), new("F5"), new("F6"), new("F7"), new("F8"), new("F9"), new("F10"), new("F11"), new("F12") },
@@ -270,6 +280,8 @@ namespace GHelper.Peripherals.Keyboard
             new byte[] { 2, 3, 4, 5, 6, 21, 23, 24, 25, 26, 28, 29, 30, 31, 33, 34, 35, 36, 37, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 79, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 97, 98, 99, 100, 105, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 140, 141, 142, 173, 172, 170, 169 }),
             ["Scar15"] = new(Scar15Rows,
             new byte[] { 2, 3, 4, 5, 6, 21, 23, 24, 25, 26, 28, 29, 30, 31, 33, 34, 35, 36, 37, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 79, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 97, 98, 99, 100, 105, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 139, 121, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 142, 137, 159, 160, 161, 174, 173, 172, 171, 170, 169 }),
+            ["Scar15Q"] = new(Scar15Rows,
+            new byte[] { 2, 3, 4, 5, 6, 21, 23, 24, 25, 26, 28, 29, 30, 31, 33, 34, 35, 36, 37, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 78, 79, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 97, 98, 99, 100, 105, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 140, 141, 142, 174, 173, 172, 171, 170, 169 }),
             ["Strix18"] = new(Strix18Rows,
             new byte[] { 2, 3, 4, 5, 6, 21, 23, 24, 25, 26, 28, 29, 30, 31, 33, 34, 35, 36, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 97, 98, 99, 101, 102, 103, 105, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 141, 142, 143, 144, 145, 176, 174, 173, 172, 171, 170, 169, 177 }),
             ["Strix2019"] = new(Strix2019Rows,
@@ -317,6 +329,10 @@ namespace GHelper.Peripherals.Keyboard
             new byte[] { 0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38, 0x40, 0x48, 0x50, 0x58, 0x60, 0x68, 0x70, 0x01, 0x09, 0x11, 0x19, 0x21, 0x29, 0x31, 0x39, 0x41, 0x49, 0x51, 0x59, 0x61, 0x6A, 0x71, 0x02, 0x0A, 0x12, 0x1A, 0x22, 0x2A, 0x32, 0x3A, 0x42, 0x4A, 0x52, 0x5A, 0x62, 0x6A, 0x72, 0x03, 0x0B, 0x13, 0x1B, 0x23, 0x2B, 0x33, 0x3B, 0x43, 0x4B, 0x53, 0x5B, 0x63, 0x6B, 0x73, 0x04, 0x0C, 0x14, 0x34, 0x4C, 0x54, 0x5C, 0x64, 0x6C, 0x74 }),
             ["FalchionRXISO"] = new(ToIso(FalchionRows),
             new byte[] { 0x01, 0x09, 0x11, 0x19, 0x21, 0x29, 0x31, 0x39, 0x41, 0x49, 0x51, 0x59, 0x61, 0x69, 0x71, 0x02, 0x0A, 0x12, 0x1A, 0x22, 0x2A, 0x32, 0x3A, 0x42, 0x4A, 0x52, 0x5A, 0x62, 0x6B, 0x72, 0x03, 0x0B, 0x13, 0x1B, 0x23, 0x2B, 0x33, 0x3B, 0x43, 0x4B, 0x53, 0x5B, 0x63, 0x6B, 0x73, 0x04, 0x0C, 0x14, 0x1C, 0x24, 0x2C, 0x34, 0x3C, 0x44, 0x4C, 0x54, 0x5C, 0x64, 0x6C, 0x74, 0x05, 0x0D, 0x15, 0x35, 0x4D, 0x55, 0x5D, 0x65, 0x6D, 0x75 }),
+            ["FalchionAce75"] = new(FalchionAce75Rows,
+            new byte[] { 0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38, 0x40, 0x48, 0x50, 0x58, 0x60, 0x68, 0x70, 0x01, 0x09, 0x11, 0x19, 0x21, 0x29, 0x31, 0x39, 0x41, 0x49, 0x51, 0x59, 0x61, 0x69, 0x71, 0x02, 0x0A, 0x12, 0x1A, 0x22, 0x2A, 0x32, 0x3A, 0x42, 0x4A, 0x52, 0x5A, 0x62, 0x6A, 0x72, 0x03, 0x0B, 0x13, 0x1B, 0x23, 0x2B, 0x33, 0x3B, 0x43, 0x4B, 0x53, 0x5B, 0x6B, 0x73, 0x04, 0x14, 0x1C, 0x24, 0x2C, 0x34, 0x3C, 0x44, 0x4C, 0x54, 0x5C, 0x64, 0x6C, 0x74, 0x05, 0x0D, 0x15, 0x35, 0x4D, 0x55, 0x5D, 0x65, 0x6D, 0x75 }),
+            ["FalchionAce75ISO"] = new(ToIso(FalchionAce75Rows),
+            new byte[] { 0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38, 0x40, 0x48, 0x50, 0x58, 0x60, 0x68, 0x70, 0x01, 0x09, 0x11, 0x19, 0x21, 0x29, 0x31, 0x39, 0x41, 0x49, 0x51, 0x59, 0x61, 0x69, 0x71, 0x02, 0x0A, 0x12, 0x1A, 0x22, 0x2A, 0x32, 0x3A, 0x42, 0x4A, 0x52, 0x5A, 0x62, 0x6B, 0x72, 0x03, 0x0B, 0x13, 0x1B, 0x23, 0x2B, 0x33, 0x3B, 0x43, 0x4B, 0x53, 0x5B, 0x63, 0x6B, 0x73, 0x04, 0x0C, 0x14, 0x1C, 0x24, 0x2C, 0x34, 0x3C, 0x44, 0x4C, 0x54, 0x5C, 0x64, 0x6C, 0x74, 0x05, 0x0D, 0x15, 0x35, 0x4D, 0x55, 0x5D, 0x65, 0x6D, 0x75 }),
             ["StrixScopeII96ISO"] = new(ToIso(StrixScopeII96Rows),
             new byte[] { 0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38, 0x40, 0x48, 0x50, 0x58, 0x60, 0x68, 0x70, 0x78, 0x80, 0x01, 0x09, 0x11, 0x19, 0x21, 0x29, 0x31, 0x39, 0x41, 0x49, 0x51, 0x59, 0x61, 0x69, 0x79, 0x81, 0x89, 0x91, 0x02, 0x0A, 0x12, 0x1A, 0x22, 0x2A, 0x32, 0x3A, 0x42, 0x4A, 0x52, 0x5A, 0x62, 0x6B, 0x7A, 0x82, 0x8A, 0x92, 0x03, 0x0B, 0x13, 0x1B, 0x23, 0x2B, 0x33, 0x3B, 0x43, 0x4B, 0x53, 0x5B, 0x63, 0x6B, 0x7B, 0x83, 0x8B, 0x04, 0x0C, 0x14, 0x1C, 0x24, 0x2C, 0x34, 0x3C, 0x44, 0x4C, 0x54, 0x5C, 0x64, 0x74, 0x7C, 0x84, 0x8C, 0x94, 0x05, 0x0D, 0x15, 0x2D, 0x35, 0x3D, 0x55, 0x5D, 0x65, 0x6D, 0x75, 0x7D, 0x85, 0x8D }),
             ["StrixScopeII96RxISO"] = new(ToIso(StrixScopeII96RxRows),
@@ -330,14 +346,14 @@ namespace GHelper.Peripherals.Keyboard
             ("G733P", "Strix17"), ("G713", "Strix17"),
             ("G814", "Strix18"), ("G815", "Strix18"), ("G834", "Strix18"), ("G835", "Strix18"),
             ("G614", "Strix16"), ("G615", "Strix16"), ("G634", "Strix16"), ("G635", "Strix16"),
-            ("G533", "Scar15"),
+            ("G533Q", "Scar15Q"), ("G533", "Scar15"),
             ("GX502", "Strix2019"), ("G532", "Strix2019"), ("G531", "Strix2019"), ("GL531", "Strix2019"), ("G731", "Strix2019"), ("G512", "Strix2019"),
             ("GX531", "Zephyrus"), ("GX550", "Zephyrus"), ("GX551", "Zephyrus"), ("GX650", "Zephyrus"), ("GX701", "Zephyrus"),
         };
 
         public static IEnumerable<string> LaptopNames => LaptopLayouts.Select(l => l.Layout).Append("Strix15").Distinct().OrderBy(n => n);
 
-        private static readonly string[] IsoLaptops = { "Strix16", "Zephyrus" };
+        private static readonly string[] IsoLaptops = { "Strix16", "Strix18", "Zephyrus" };
 
         public static LayoutData Laptop(string? name = null, bool iso = false)
         {
@@ -383,7 +399,8 @@ namespace GHelper.Peripherals.Keyboard
 
             var byName = all.Where(i => IsKey(i) && UsageName(lamps[i].Usage) != "").GroupBy(i => UsageName(lamps[i].Usage)).ToDictionary(g => g.Key, g => g.First());
             if (byName.TryGetValue("\\", out int backslash)) byName.TryAdd("#", backslash);
-            if (byName.Count == 0) return null;
+            var kbd = all.Where(IsKey).OrderBy(i => lamps[i].X).ToList();
+            if (kbd.Count == 0) return null;
 
             var keyRows = new List<List<int>>();
             foreach (int i in all.Where(IsKey).OrderBy(i => lamps[i].Y))
@@ -397,7 +414,7 @@ namespace GHelper.Peripherals.Keyboard
             double mid = (lamps.Min(l => l.X) + lamps.Max(l => l.X)) / 2.0;
             var bars = all.Where(i => !IsKey(i) && !IsLogo(i)).ToList();
             var front = bars.Where(i => lamps[i].Y >= keyTop).OrderBy(i => lamps[i].X).ThenBy(i => lamps[i].X < mid ? lamps[i].Y : -lamps[i].Y).ToList();
-            var rear = bars.Where(i => lamps[i].Y < keyTop).OrderBy(i => lamps[i].X).ToList();
+            var rear = bars.Where(i => lamps[i].Y < keyTop).OrderBy(i => lamps[i].X).ThenBy(i => lamps[i].X < mid ? -lamps[i].Y : lamps[i].Y).ToList();
             var logo = all.Where(IsLogo).ToList();
 
             float width = layout.Rows.Max(r => r.Sum(d => d.Gap + d.Width));
@@ -412,14 +429,17 @@ namespace GHelper.Peripherals.Keyboard
                 .Concat(logo.Select((_, k) => new KeyDef("Logo", 1, k == 0 ? width - firstWidth - logo.Count : 0, 0.5f, 0.15f))).ToArray();
             var logos = new Queue<int>(logo);
 
-            int row = 0, bar = 0, barCount = table.Sum(r => r.Count(d => d.Name == "Lightbar"));
+            var zones = Zones(table);
+            int row = 0, bar = 0, cell = 0, barCount = table.Sum(r => r.Count(d => d.Name == "Lightbar"));
             foreach (var defs in table)
             {
                 var queue = defs.All(d => d.Name == "Lightbar") ? null : blanks.ElementAtOrDefault(row++);
                 foreach (var def in defs)
                 {
+                    int zone = zones[cell++];
                     if (def.Name == "Lightbar") targets.Add(front.Count > 0 ? front[bar++ * front.Count / barCount] : int.MaxValue);
                     else if (def.Name == "Logo") targets.Add(logos.Dequeue());
+                    else if (byName.Count == 0) targets.Add(kbd[zone * kbd.Count / 4]);
                     else if (byName.TryGetValue(def.Name, out int i)) targets.Add(i);
                     else targets.Add(queue?.Count > 0 ? queue.Dequeue() : int.MaxValue);
                 }

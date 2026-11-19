@@ -457,6 +457,12 @@ namespace GHelper
             SchedulePowerCheck();
         }
 
+        public static bool IsTaskbarTop()
+        {
+            var rect = new Helpers.RECT();
+            return User32.GetWindowRect(Helpers.NativeMethods.FindWindow("Shell_TrayWnd", null), ref rect) && rect.top <= 0 && rect.right - rect.left > rect.bottom - rect.top;
+        }
+
         public static void SettingsToggle(bool checkForFocus = true, bool trayClick = false)
         {
             if (settingsForm.Visible)
@@ -481,7 +487,7 @@ namespace GHelper
 
                 settingsForm.Location = screen.WorkingArea.Location;
                 settingsForm.Left = screen.WorkingArea.Right - 10 - settingsForm.Width;
-                settingsForm.Top = screen.WorkingArea.Top - screen.Bounds.Top > screen.Bounds.Bottom - screen.WorkingArea.Bottom ? screen.WorkingArea.Top + 10 : screen.WorkingArea.Bottom - 10 - settingsForm.Height;
+                settingsForm.Top = IsTaskbarTop() ? screen.WorkingArea.Top + 10 : screen.WorkingArea.Bottom - 10 - settingsForm.Height;
 
                 // Refresh from hardware before first paint, so buttons
                 // (Hz / HDR etc.) already show the live state
@@ -495,7 +501,7 @@ namespace GHelper
                 if (AppConfig.IsAlly())
                     settingsForm.Top = Math.Max(10, screen.Bounds.Height - 110 - settingsForm.Height);
                 else
-                    settingsForm.Top = screen.WorkingArea.Top - screen.Bounds.Top > screen.Bounds.Bottom - screen.WorkingArea.Bottom ? screen.WorkingArea.Top + 10 : screen.WorkingArea.Bottom - 10 - settingsForm.Height;
+                    settingsForm.Top = IsTaskbarTop() ? screen.WorkingArea.Top + 10 : screen.WorkingArea.Bottom - 10 - settingsForm.Height;
 
                 settingsForm.VisualiseGPUMode();
 
@@ -554,6 +560,7 @@ namespace GHelper
                     if (acpi.IsConnected()) acpi.DeviceSet(AsusACPI.BatteryLimit, limit, "Limit");
                     else AsusACPI.DeviceSetWmi(AsusACPI.BatteryLimit, limit);
                 }
+                if (acpi.IsConnected()) Logger.WriteLine("Startup Eco flag : " + acpi.DeviceGet(AsusACPI.GPUEco));
             }
             catch (Exception ex)
             {

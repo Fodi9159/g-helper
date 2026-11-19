@@ -723,7 +723,7 @@ namespace GHelper
 
             var screen = Screen.FromControl(this);
             Left = screen.WorkingArea.Right - 10 - Width;
-            Top = screen.WorkingArea.Top - screen.Bounds.Top > screen.Bounds.Bottom - screen.WorkingArea.Bottom ? screen.WorkingArea.Top + 10 : screen.WorkingArea.Bottom - 10 - Height;
+            Top = Program.IsTaskbarTop() ? screen.WorkingArea.Top + 10 : screen.WorkingArea.Bottom - 10 - Height;
         }
 
         private void PanelBattery_MouseEnter(object? sender, EventArgs e)
@@ -998,6 +998,17 @@ namespace GHelper
                 VisualiseIcon();
             };
             contextMenuStrip.Items.Add(bwIcon);
+
+            var modeIcon = new ToolStripMenuItem(Properties.Strings.TrayIconMode);
+            modeIcon.Margin = padding;
+            modeIcon.Checked = AppConfig.Is("icon_mode");
+            modeIcon.Click += (sender, args) =>
+            {
+                modeIcon.Checked = !modeIcon.Checked;
+                AppConfig.Set("icon_mode", modeIcon.Checked ? 1 : 0);
+                VisualiseIcon();
+            };
+            contextMenuStrip.Items.Add(modeIcon);
 
             contextMenuStrip.Items.Add("-");
 
@@ -1892,6 +1903,8 @@ namespace GHelper
                     menuItem.Checked = ((int)menuItem.Tag == mode);
                 }
             }
+
+            VisualiseIcon();
         }
 
 
@@ -2091,7 +2104,8 @@ namespace GHelper
             {
                 labelTipGPU.Visible = false;
                 labelTipScreen.Visible = false;
-                Top = 5;
+                PerformLayout();
+                if (Top < 0) Top = 5;
             }
 
         }
@@ -2105,7 +2119,12 @@ namespace GHelper
             if (Program.trayIcon is null) return;
             if (themeChange) isDark = ThemeControl.IsDark();
 
-            int GPUMode = AppConfig.Get("gpu_mode");
+            int GPUMode = !AppConfig.Is("icon_mode") ? AppConfig.Get("gpu_mode") : Modes.GetCurrentBase() switch
+            {
+                AsusACPI.PerformanceSilent => AsusACPI.GPUModeEco,
+                AsusACPI.PerformanceTurbo or AsusACPI.PerformanceFullSpeed => AsusACPI.GPUModeUltimate,
+                _ => AsusACPI.GPUModeStandard,
+            };
             bool bw = AppConfig.IsBWIcon();
 
             if (lastIcon == (GPUMode, isDark, bw)) return;

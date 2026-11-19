@@ -122,6 +122,7 @@ namespace GHelper.USB
         public static bool HasLogo { get; private set; }
         public static bool HasLightbar { get; private set; }
         public static bool HasRearglow { get; private set; }
+        public static bool HasWheel { get; private set; }
         static bool hasRearStrip = false;
         public static bool IsOldStrix { get; private set; }
 
@@ -381,6 +382,7 @@ namespace GHelper.USB
             HasLightbar = (feat1 & (FEAT1_LIGHTBAR | FEAT1_LOGO)) != 0;
             HasRearglow = (feat1 & (FEAT1_REARGLOW | FEAT1_VCUT)) != 0;
             hasRearStrip = (feat1 & FEAT1_REARGLOW) != 0;
+            HasWheel = (feat2 & FEAT2_RGB_WHEEL) != 0;
 
             isStrix4Zone = BacklightType == AuraBacklightType.MultiZone;
             isIso = layout == 0x02;
@@ -408,6 +410,11 @@ namespace GHelper.USB
             InputDispatcher.InitFNLock();
         }
 
+
+        public static void ApplyWheel()
+        {
+            if (HasWheel) AsusHid.Write([AsusHid.AURA_ID, 0xBA, 0xC6, 0x64], "Wheel");
+        }
 
         public static void SleepBrightness()
         {
@@ -727,6 +734,7 @@ namespace GHelper.USB
                     AsusHid.SetFeatureAura(buffer);
                     Thread.Sleep(1);
                 }
+                if (keys && AppConfig.ContainsModel("G835")) AsusHid.SetFeatureAura(new byte[] { AsusHid.AURA_ID, 0xBC, 0x02, 0x01, 0, 0, 0, 0, 0 }.Concat(new byte[] { 176, 176, 174, 173, 173, 172, 171, 171, 170, 169, 169, 177 }.SelectMany(id => keyBuf.Skip(3 * id).Take(3))).ToArray());
             }
 
             buffer[4] = 0x04;
@@ -790,13 +798,16 @@ namespace GHelper.USB
 
         public static (List<KeyDef[]> Rows, int[] Targets) KeyLayout()
         {
+            var layout = AuraKeyboardLayouts.Laptop(KeyLayoutName, isIso);
+            if (!HasLightbar) layout = layout with { Rows = layout.Rows.Where(r => r.Any(d => d.Name != "Lightbar")).ToList() };
+
             if (LampLayout)
             {
                 var lamps = AsusLampArray.Lamps();
-                return AuraKeyboardLayouts.MapLamps(AuraKeyboardLayouts.Laptop(null, isIso), lamps) ?? AuraKeyboardLayouts.FromLamps(lamps);
+                if (!HasLogo) lamps = lamps.Select(l => (l.X, l.Y, l.Usage, l.Purpose & ~0x04)).ToArray();
+                return AuraKeyboardLayouts.MapLamps(layout, lamps) ?? AuraKeyboardLayouts.FromLamps(lamps);
             }
 
-            var layout = AuraKeyboardLayouts.Laptop(KeyLayoutName, isIso);
             return (layout.Rows, isStrix4Zone ? AuraKeyboardLayouts.Zones(layout.Rows) : Array.ConvertAll(layout.LedIds, id => (int)id));
         }
 

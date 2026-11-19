@@ -1212,6 +1212,7 @@ namespace GHelper.Input
             {
                 Aura.ApplyPower();
                 SetBacklightAuto();
+                Aura.ApplyWheel();
                 Aura.ApplyAura();
             } else
             {
