@@ -1838,7 +1838,7 @@ namespace GHelper
             tableVisual.Padding = new Padding(3, 0, 3, 0);
             tableVisual.RowCount = 2;
             tableVisual.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            tableVisual.RowStyles.Add(new RowStyle(SizeType.Absolute, 51F));
+            tableVisual.RowStyles.Add(new RowStyle(SizeType.Absolute, 80F));
             tableVisual.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
             tableVisual.Size = new Size(787, 79);
             tableVisual.TabIndex = 2;
@@ -1872,7 +1872,7 @@ namespace GHelper
             buttonLightMode.BackColor = SystemColors.ControlLightLight;
             buttonLightMode.BorderColor = Color.Transparent;
             buttonLightMode.BorderRadius = 5;
-            buttonLightMode.Dock = DockStyle.Top;
+            buttonLightMode.Dock = DockStyle.Fill;
             buttonLightMode.FlatAppearance.BorderSize = 0;
             buttonLightMode.FlatStyle = FlatStyle.Flat;
             buttonLightMode.ForeColor = SystemColors.ControlText;
@@ -1880,7 +1880,7 @@ namespace GHelper
             buttonLightMode.Margin = new Padding(4);
             buttonLightMode.Name = "buttonLightMode";
             buttonLightMode.Secondary = false;
-            buttonLightMode.Size = new Size(252, 51);
+            buttonLightMode.Size = new Size(252, 72);
             buttonLightMode.TabIndex = 41;
             buttonLightMode.Text = "Light Mode";
             buttonLightMode.UseVisualStyleBackColor = false;
@@ -1891,7 +1891,7 @@ namespace GHelper
             buttonDarkMode.BackColor = SystemColors.ControlLightLight;
             buttonDarkMode.BorderColor = Color.Transparent;
             buttonDarkMode.BorderRadius = 5;
-            buttonDarkMode.Dock = DockStyle.Top;
+            buttonDarkMode.Dock = DockStyle.Fill;
             buttonDarkMode.FlatAppearance.BorderSize = 0;
             buttonDarkMode.FlatStyle = FlatStyle.Flat;
             buttonDarkMode.ForeColor = SystemColors.ControlText;
@@ -1899,7 +1899,7 @@ namespace GHelper
             buttonDarkMode.Margin = new Padding(4);
             buttonDarkMode.Name = "buttonDarkMode";
             buttonDarkMode.Secondary = false;
-            buttonDarkMode.Size = new Size(252, 51);
+            buttonDarkMode.Size = new Size(252, 72);
             buttonDarkMode.TabIndex = 42;
             buttonDarkMode.Text = "Dark Mode";
             buttonDarkMode.UseVisualStyleBackColor = false;

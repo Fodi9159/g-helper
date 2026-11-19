@@ -172,6 +172,8 @@ namespace GHelper
             buttonDarkMode.Text = Properties.Strings.DarkMode;
             buttonLightMode.BorderColor = colorStandard;
             buttonDarkMode.BorderColor = colorStandard;
+            buttonLightMode.BorderSize = 5;
+            buttonDarkMode.BorderSize = 5;
             buttonLightMode.Click += ButtonLightMode_Click;
             buttonDarkMode.Click += ButtonDarkMode_Click;
 

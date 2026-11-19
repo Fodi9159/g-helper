@@ -15,6 +15,12 @@ namespace GHelper.UI
         //Fields
         private int borderSize = 5;
 
+        public int BorderSize
+        {
+            get { return borderSize; }
+            set { borderSize = value; }
+        }
+
         private int borderRadius = 5;
         public int BorderRadius
         {
